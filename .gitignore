@@ -1,0 +1,8 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/DMU_GitNew/v17
+/DMU_Git/.vs/DMU_Git/FileContentIndex
+/DMU_Git/DMU_Git/obj
+/DMU_Git/DMU_Git/obj/Debug/net7.0
