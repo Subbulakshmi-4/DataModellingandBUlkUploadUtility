@@ -1,0 +1,15 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/DataModelling/v17
+/DMU_Git/.vs/DMU_Git
+/DMU_Git/DMU_Git/obj/Debug/net7.0/.NETCoreApp,Version=v7.0.AssemblyAttributes.cs
+/DMU_Git/DMU_Git/obj/Debug/net7.0/DMU_Git.assets.cache
+/DMU_Git/DMU_Git/obj/Debug/net7.0/DMU_Git.csproj.AssemblyReference.cache
+/DMU_Git/DMU_Git/obj/Debug/net7.0/DMU_Git.GeneratedMSBuildEditorConfig.editorconfig
+/DMU_Git/DMU_Git/obj/DMU_Git.csproj.nuget.dgspec.json
+/DMU_Git/DMU_Git/obj/DMU_Git.csproj.nuget.g.props
+/DMU_Git/DMU_Git/obj/DMU_Git.csproj.nuget.g.targets
+/DMU_Git/DMU_Git/obj/project.assets.json
+/DMU_Git/DMU_Git/obj/project.nuget.cache
