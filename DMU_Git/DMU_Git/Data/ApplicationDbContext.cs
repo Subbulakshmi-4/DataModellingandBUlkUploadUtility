@@ -9,7 +9,6 @@ namespace DMU_Git.Data
         {
                 
         }
-
         public DbSet<EntityListMetadataModel> EntityListMetadataModels { get; set; }
 
         public DbSet<EntityColumnListMetadataModel> EntityColumnListMetadataModels { get; set; }
