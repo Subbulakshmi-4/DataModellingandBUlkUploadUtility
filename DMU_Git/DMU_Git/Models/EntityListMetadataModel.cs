@@ -4,5 +4,6 @@
     {
         public int Id { get; set; }
         public string EntityName { get; set; }
+        public ICollection<EntityColumnListMetadataModel> EntityColumnListMetadata { get; set; }
     }
 }
