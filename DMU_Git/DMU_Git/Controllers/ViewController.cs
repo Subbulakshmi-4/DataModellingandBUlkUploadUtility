@@ -1,9 +1,13 @@
-﻿using DMU_Git.Services;
+﻿using DMU_Git.Models.DTO;
+using DMU_Git.Services;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
 
 namespace DMU_Git.Controllers
 {
     [Route("api/entity")]
+    [EnableCors("AllowAngular")]
     [ApiController]
     public class ViewController : Controller
     {
@@ -17,14 +21,30 @@ namespace DMU_Git.Controllers
         [HttpGet("{entityName}/columns")]
         public IActionResult GetColumnsForEntity(string entityName)
         {
-            var columns = _viewService.GetColumnsForEntity(entityName);
+            var columnsDTO = _viewService.GetColumnsForEntity(entityName);
 
-            if (columns == null)
+            if (columnsDTO == null)
             {
-                return NotFound();
+                var response = new APIResponse<List<EntityColumnDTO>>
+                {
+                    StatusCode = HttpStatusCode.NotFound,
+                    IsSuccess = false,
+                    ErrorMessage = new List<string> { "Columns not found" },
+                    Result = null
+                };
+                return NotFound(response);
             }
 
-            return Ok(columns);
+            var apiResponse = new APIResponse<List<EntityColumnDTO>>
+            {
+                StatusCode = HttpStatusCode.OK,
+                IsSuccess = true,
+                ErrorMessage = null,
+                Result = (List<EntityColumnDTO>)columnsDTO
+            };
+
+            return Ok(apiResponse);
         }
+
     }
 }
