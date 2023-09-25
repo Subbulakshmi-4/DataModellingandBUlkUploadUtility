@@ -68,6 +68,8 @@ namespace DMU_Git.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("EntityId");
+
                     b.ToTable("EntityColumnListMetadataModels");
                 });
 
@@ -98,6 +100,20 @@ namespace DMU_Git.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("EntityListMetadataModels");
+                });
+
+            modelBuilder.Entity("DMU_Git.Models.EntityColumnListMetadataModel", b =>
+                {
+                    b.HasOne("DMU_Git.Models.EntityListMetadataModel", null)
+                        .WithMany("EntityColumnListMetadata")
+                        .HasForeignKey("EntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DMU_Git.Models.EntityListMetadataModel", b =>
+                {
+                    b.Navigation("EntityColumnListMetadata");
                 });
 #pragma warning restore 612, 618
         }
