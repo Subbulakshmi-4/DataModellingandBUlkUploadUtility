@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Cors;
 namespace DMU_Git.Controllers
 {
     [Route("api/excel")]
-    [EnableCors("AllowAngular")]
+    [EnableCors("AllowAngularDev")]
     public class ExcelController : Controller
     {
         private readonly IExcelService excelService;

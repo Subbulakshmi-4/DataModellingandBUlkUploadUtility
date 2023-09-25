@@ -7,7 +7,7 @@ using System.Net;
 namespace DMU_Git.Controllers
 {
     [Route("api/entity")]
-    [EnableCors("AllowAngular")]
+    [EnableCors("AllowAngularDev")]
     [ApiController]
     public class ViewController : Controller
     {
