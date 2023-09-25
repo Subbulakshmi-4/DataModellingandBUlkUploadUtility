@@ -14,15 +14,15 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<ViewService>();
 builder.Services.AddScoped<IExcelService, ExcelService>();
-//builder.Services.AddCors(options =>
-//{
-//    options.AddPolicy("AllowAngular", builder =>
-//    {
-//        builder.WithOrigins("http://localhost:4200") // Update with your Angular app's URL
-//            .AllowAnyHeader()
-//            .AllowAnyMethod();
-//    });
-//});
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular", builder =>
+    {
+        builder.WithOrigins("http://localhost:4200") // Update with your Angular app's URL
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 var app = builder.Build();
