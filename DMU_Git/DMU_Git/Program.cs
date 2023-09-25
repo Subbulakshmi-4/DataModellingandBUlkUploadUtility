@@ -11,7 +11,18 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngularDev",
+        builder =>
+        {
+            builder.WithOrigins("http://localhost:4200")
+                   .AllowAnyHeader()
+                   .AllowAnyMethod();
+        });
+});
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 builder.Services.AddScoped<ViewService>();
 builder.Services.AddScoped<IExcelService, ExcelService>();
 builder.Services.AddCors(options =>
@@ -25,6 +36,7 @@ builder.Services.AddCors(options =>
 });
 
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -35,7 +47,8 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "DMUAPI");
     });
 }
-
+// Apply CORS policy
+app.UseCors("AllowAngularDev");
 app.UseHttpsRedirection();
 app.UseCors("AllowAngular");
 app.UseAuthorization();
