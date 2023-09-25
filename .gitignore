@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/DMU_Git/DMU_Git/appsettings.json
+/DMU_Git/DMU_Git/DMU_Git.csproj
+/DMU_Git/DMU_Git/DMU_Git.csproj.user
