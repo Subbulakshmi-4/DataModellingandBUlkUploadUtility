@@ -13,6 +13,19 @@ namespace DMU_Git.Data
 
         public DbSet<EntityColumnListMetadataModel> EntityColumnListMetadataModels { get; set; }
 
+        //protected override void OnModelCreating(ModelBuilder modelBuilder)
+        //{
+        //    modelBuilder.Entity<EntityListMetadataModel>()
+        //        .HasMany(e => e.EntityColumnListMetadata)
+        //        .WithOne()
+        //        .HasForeignKey(e => e.EntityId);
+
+        //    // Other configuration...
+
+        //    base.OnModelCreating(modelBuilder);
+        //}
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<EntityListMetadataModel>()
@@ -20,8 +33,15 @@ namespace DMU_Git.Data
                 .WithOne()
                 .HasForeignKey(e => e.EntityId);
 
-            // Other configuration...
+            modelBuilder.Entity<EntityColumnListMetadataModel>()
+                .HasOne(e => e.EntityList)
+                .WithMany(l => l.EntityColumns)
+                .HasForeignKey(e => e.EntityId)
+                .OnDelete(DeleteBehavior.Cascade);
 
+            // Additional configurations or constraints can be added here if needed
+
+            // Call the base method at the end
             base.OnModelCreating(modelBuilder);
         }
     }
