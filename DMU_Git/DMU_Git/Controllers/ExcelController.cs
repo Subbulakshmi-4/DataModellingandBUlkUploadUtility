@@ -1,8 +1,11 @@
-﻿using DMU_Git.Models.DTO;
-using DMU_Git.Models;
-using Microsoft.AspNetCore.Mvc;
-using System.Net;
+﻿using DMU_Git.Models;
+using DMU_Git.Models.DTO;
+using DMU_Git.Services;
 using Microsoft.AspNetCore.Cors;
+using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.Net;
 using OfficeOpenXml;
 using DocumentFormat.OpenXml.Drawing;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +18,7 @@ using NpgsqlTypes;
 namespace DMU_Git.Controllers
 {
     [Route("api/excel")]
+
     [Route("api/[controller]")]
     [ApiController]
     //[EnableCors("AllowAngularDev")]
@@ -22,17 +26,21 @@ namespace DMU_Git.Controllers
     {
         private readonly IExcelService _excelService;
         private readonly ApplicationDbContext _context;
-        protected APIResponse _response;
+        protected APIResponse _response
+
 
         public ExcelController(IExcelService excelService, ApplicationDbContext context)
         {
+
             _excelService = excelService;
             _context = context;
             _response = new();
+            _excelService = excelService ?? throw new ArgumentNullException(nameof(excelService));
+
         }
 
         [HttpPost("generate")]
-        public IActionResult GenerateExcelFile([FromBody] List<TableColumn> columns)
+        public IActionResult GenerateExcelFile([FromBody] List<EntityColumnDTO> columns)
         {
             try
             {
@@ -48,13 +56,47 @@ namespace DMU_Git.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode((int)HttpStatusCode.InternalServerError, new APIResponse<byte[]>
+
+                var apiResponse = new APIResponse
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
                     IsSuccess = false,
                     ErrorMessage = new List<string> { ex.Message },
                     Result = null
-                });
+                };
+
+                return StatusCode((int)HttpStatusCode.InternalServerError, apiResponse);
+            }
+        }
+
+        [HttpPost("upload")]
+        public IActionResult UploadTemplate(IFormFile file)
+        {
+            try
+            {
+                // Check if a file was provided
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest("No file provided.");
+                }
+
+                // Process the uploaded file (e.g., save it to a location)
+                // You can use a library like EPPlus to read the Excel file if needed
+
+                // Respond with a success message or other relevant data
+                return Ok("Template uploaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                var apiResponse = new APIResponse
+                {
+                    StatusCode = HttpStatusCode.InternalServerError,
+                    IsSuccess = false,
+                    ErrorMessage = new List<string> { ex.Message },
+                    Result = null
+                };
+
+                return StatusCode((int)HttpStatusCode.InternalServerError, apiResponse);
             }
         }
 

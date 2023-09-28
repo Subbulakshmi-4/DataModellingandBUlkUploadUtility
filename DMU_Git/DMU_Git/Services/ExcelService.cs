@@ -1,3 +1,4 @@
+
 ﻿using DMU_Git.Data;
 using DMU_Git.Models;
 using DMU_Git.Models.DTO;
@@ -7,14 +8,16 @@ using System.Collections.Generic;
 using System.IO;
 
 
+
 public class ExcelService : IExcelService
 {
-    private readonly ApplicationDbContext _context;
+ private readonly ApplicationDbContext _context;
     public ExcelService(ApplicationDbContext context)
     {
         _context = context;
     }
-    public byte[] GenerateExcelFile(List<TableColumn> columns)
+    public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
+
     {
         using (var package = new ExcelPackage())
         {
@@ -31,7 +34,8 @@ public class ExcelService : IExcelService
             return package.GetAsByteArray();
         }
     }
-    // Assuming you've installed EPPlus via NuGet
+
+    
 
 
     public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream)
@@ -69,6 +73,7 @@ public class ExcelService : IExcelService
             return data;
         }
     }
+
 
 }
 

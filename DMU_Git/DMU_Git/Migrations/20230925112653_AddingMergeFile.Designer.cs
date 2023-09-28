@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DMU_Git.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20230923122026_AddingTable")]
-    partial class AddingTable
+    [Migration("20230925112653_AddingMergeFile")]
+    partial class AddingMergeFile
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -71,6 +71,8 @@ namespace DMU_Git.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("EntityId");
+
                     b.ToTable("EntityColumnListMetadataModels");
                 });
 
@@ -101,6 +103,20 @@ namespace DMU_Git.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("EntityListMetadataModels");
+                });
+
+            modelBuilder.Entity("DMU_Git.Models.EntityColumnListMetadataModel", b =>
+                {
+                    b.HasOne("DMU_Git.Models.EntityListMetadataModel", null)
+                        .WithMany("EntityColumnListMetadata")
+                        .HasForeignKey("EntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DMU_Git.Models.EntityListMetadataModel", b =>
+                {
+                    b.Navigation("EntityColumnListMetadata");
                 });
 #pragma warning restore 612, 618
         }
