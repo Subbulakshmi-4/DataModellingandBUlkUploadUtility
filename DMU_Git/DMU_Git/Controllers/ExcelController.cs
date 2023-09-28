@@ -38,6 +38,7 @@ namespace DMU_Git.Controllers
             }
             catch (Exception ex)
             {
+
                 var apiResponse = new APIResponse
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
