@@ -1,4 +1,5 @@
 ﻿using DMU_Git.Models;
+using DMU_Git.Models.DTO;
 using OfficeOpenXml;
 using System.Collections.Generic;
 using System.IO;
@@ -6,12 +7,12 @@ using System.IO;
 
 public interface IExcelService
 {
-    byte[] GenerateExcelFile(List<TableColumn> columns);
+    byte[] GenerateExcelFile(List<EntityColumnDTO> columns);
 }
 
 public class ExcelService : IExcelService
 {
-    public byte[] GenerateExcelFile(List<TableColumn> columns)
+    public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
     {
         using (var package = new ExcelPackage())
         {

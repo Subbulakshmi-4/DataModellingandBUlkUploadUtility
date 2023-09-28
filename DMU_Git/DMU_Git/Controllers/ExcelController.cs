@@ -22,7 +22,7 @@ namespace DMU_Git.Controllers
         }
 
         [HttpPost("generate")]
-        public IActionResult GenerateExcelFile([FromBody] List<TableColumn> columns)
+        public IActionResult GenerateExcelFile([FromBody] List<EntityColumnDTO> columns)
         {
             try
             {
