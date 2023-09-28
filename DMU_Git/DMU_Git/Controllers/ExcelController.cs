@@ -7,10 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using OfficeOpenXml;
-using DocumentFormat.OpenXml.Drawing;
 using Microsoft.EntityFrameworkCore;
 using DMU_Git.Data;
-using DocumentFormat.OpenXml.InkML;
 using DMU_Git.Services.Interface;
 using Npgsql;
 using NpgsqlTypes;
@@ -26,7 +24,7 @@ namespace DMU_Git.Controllers
     {
         private readonly IExcelService _excelService;
         private readonly ApplicationDbContext _context;
-        protected APIResponse _response
+        protected APIResponse _response;
 
 
         public ExcelController(IExcelService excelService, ApplicationDbContext context)
