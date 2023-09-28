@@ -368,3 +368,5 @@ FodyWeavers.xsd
 /DMU_Git/DMU_Git/DMU_Git.csproj
 /DMU_Git/DMU_Git/DMU_Git.csproj.user
 /DMU_Git/DMU_Git/Migrations/20230925090943_newlyaddedddd.cs
+
+/DMU_Git/DMU_Git/Migrations

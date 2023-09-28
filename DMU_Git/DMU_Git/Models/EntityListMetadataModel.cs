@@ -12,6 +12,9 @@
         public int Id { get; set; }
         public string EntityName { get; set; }
 
+
         public List<EntityColumnListMetadataModel> EntityColumns { get; set; }
+        public ICollection<EntityColumnListMetadataModel> EntityColumnListMetadata { get; set; }
+
     }
 }
