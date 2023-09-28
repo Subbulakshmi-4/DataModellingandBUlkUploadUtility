@@ -68,38 +68,6 @@ namespace DMU_Git.Controllers
         }
 
         [HttpPost("upload")]
-        public IActionResult UploadTemplate(IFormFile file)
-        {
-            try
-            {
-                // Check if a file was provided
-                if (file == null || file.Length == 0)
-                {
-                    return BadRequest("No file provided.");
-                }
-
-                // Process the uploaded file (e.g., save it to a location)
-                // You can use a library like EPPlus to read the Excel file if needed
-
-                // Respond with a success message or other relevant data
-                return Ok("Template uploaded successfully.");
-            }
-            catch (Exception ex)
-            {
-                var apiResponse = new APIResponse
-                {
-                    StatusCode = HttpStatusCode.InternalServerError,
-                    IsSuccess = false,
-                    ErrorMessage = new List<string> { ex.Message },
-                    Result = null
-                };
-
-                return StatusCode((int)HttpStatusCode.InternalServerError, apiResponse);
-            }
-        }
-
-
-        [HttpPost("upload")]
         public IActionResult UploadFile(IFormFile file, string tableName)
         {
             if (file == null || file.Length == 0)
