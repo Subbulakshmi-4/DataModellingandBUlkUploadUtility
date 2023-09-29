@@ -4,7 +4,6 @@
     {
         public int Id { get; set; }
         public string EntityName { get; set; }
-        public ICollection<EntityColumnDTO> EntityColumnListMetadata { get; set; }
 
         public static explicit operator EntityListMetadataModelDTO(EntityListMetadataModel data)
         {
@@ -12,7 +11,6 @@
             {
                 Id = data.Id,
                 EntityName = data.EntityName,
-                EntityColumnListMetadata = data.EntityColumnListMetadata.Select(c => (EntityColumnDTO)c).ToList()
             };
         }
 
@@ -22,7 +20,6 @@
             {
                 Id = data.Id,
                 EntityName = data.EntityName,
-                EntityColumnListMetadata = data.EntityColumnListMetadata.Select(c => (EntityColumnListMetadataModel)c).ToList()
             };
         }
     }

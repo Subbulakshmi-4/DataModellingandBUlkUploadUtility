@@ -27,15 +27,15 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql
 builder.Services.AddScoped<ViewService>();
 builder.Services.AddScoped<IEntitylistService, EntitylistService>();
 builder.Services.AddScoped<IExcelService, ExcelService>();
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAngular", builder =>
-    {
-        builder.WithOrigins("http://localhost:4200") // Update with your Angular app's URL
-            .AllowAnyHeader()
-            .AllowAnyMethod();
-    });
-});
+//builder.Services.AddCors(options =>
+//{
+//    options.AddPolicy("AllowAngular", builder =>
+//    {
+//        builder.WithOrigins("http://localhost:4200") // Update with your Angular app's URL
+//            .AllowAnyHeader()
+//            .AllowAnyMethod();
+//    });
+//});
 
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
@@ -52,7 +52,6 @@ if (app.Environment.IsDevelopment())
 // Apply CORS policy
 app.UseCors("AllowAngularDev");
 app.UseHttpsRedirection();
-app.UseCors("AllowAngular");
 app.UseAuthorization();
 app.MapControllers();
 

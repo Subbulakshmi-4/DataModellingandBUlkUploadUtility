@@ -361,5 +361,12 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/DMU_Git/DMU_Git/Migrations/20230923080641_addingmodelstodb.cs
+/DMU_Git/DMU_Git/Migrations/20230923080641_addingmodelstodb.Designer.cs
+*.cs
+/DMU_Git/DMU_Git/Migrations/ApplicationDbContextModelSnapshot.cs
 /DMU_Git/DMU_Git/DMU_Git.csproj
 /DMU_Git/DMU_Git/DMU_Git.csproj.user
+/DMU_Git/DMU_Git/Migrations/20230925090943_newlyaddedddd.cs
+
+/DMU_Git/DMU_Git/Migrations

@@ -10,6 +10,7 @@
         public string DefaultValue { get; set; }
         public bool ColumnPrimaryKey { get; set; }
 
+
         public static explicit operator EntityColumnDTO(EntityColumnListMetadataModel data)
         {
             return new EntityColumnDTO
