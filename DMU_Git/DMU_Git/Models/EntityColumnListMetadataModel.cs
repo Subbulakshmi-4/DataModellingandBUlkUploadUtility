@@ -22,6 +22,6 @@ namespace DMU_Git.Models
 
         public bool ColumnPrimaryKey { get; set; }
 
-        public EntityListMetadataModel EntityList { get; set; }
+        //public EntityListMetadataModel EntityList { get; set; }
     }
 }
