@@ -4,7 +4,7 @@
     {
         public string TableName { get; set; }
         public List<ColumnDefinitionDTO> Columns { get; set; }
-    }
+    }   
 
     public class ColumnDefinitionDTO
     {

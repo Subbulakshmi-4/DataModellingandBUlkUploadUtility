@@ -52,7 +52,7 @@ namespace DMU_Git.Controllers
                         StatusCode = HttpStatusCode.OK,
                         IsSuccess = true,
                         ErrorMessage = new List<string>(),
-                        Result = $"Table '{request.TableName}' created successfully."
+                        Result = $"Table '{request.TableName}' created successfully." 
                     };
 
                     return Ok(response);

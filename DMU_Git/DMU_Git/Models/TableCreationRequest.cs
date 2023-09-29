@@ -5,7 +5,7 @@
         public string TableName { get; set; }
         public List<ColumnDefinition> Columns { get; set; }
     }
-
+         
     public class ColumnDefinition
     {
         public string EntityColumnName { get; set; }

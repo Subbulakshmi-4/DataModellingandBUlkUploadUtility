@@ -11,7 +11,7 @@ namespace DMU_Git.Services
     public class DynamicDbService
     {
         private readonly ApplicationDbContext _dbContext;
-
+          
         public DynamicDbService(ApplicationDbContext dbContext)
         {
             _dbContext = dbContext;
