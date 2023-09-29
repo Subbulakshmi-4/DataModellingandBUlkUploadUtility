@@ -69,6 +69,38 @@ namespace DMU_Git.Controllers
             }
         }
 
+        //[HttpPost("upload")]
+        //public IActionResult UploadTemplate(IFormFile file)
+        //{
+        //    try
+        //    {
+        //        // Check if a file was provided
+        //        if (file == null || file.Length == 0)
+        //        {
+        //            return BadRequest("No file provided.");
+        //        }
+
+        //        // Process the uploaded file (e.g., save it to a location)
+        //        // You can use a library like EPPlus to read the Excel file if needed
+
+        //        // Respond with a success message or other relevant data
+        //        return Ok("Template uploaded successfully.");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        var apiResponse = new APIResponse
+        //        {
+        //            StatusCode = HttpStatusCode.InternalServerError,
+        //            IsSuccess = false,
+        //            ErrorMessage = new List<string> { ex.Message },
+        //            Result = null
+        //        };
+
+        //        return StatusCode((int)HttpStatusCode.InternalServerError, apiResponse);
+        //    }
+        //}
+
+
         [HttpPost("upload")]
         //public IActionResult UploadFile(IFormFile file, [FromBody] UploadParamsDTO uploadParams)
         //{
@@ -94,6 +126,7 @@ namespace DMU_Git.Controllers
                         _response.StatusCode = HttpStatusCode.BadRequest;
                         _response.ErrorMessage.Add("No data found in the Excel file.");
                         return BadRequest(_response);
+
                     }
 
                     //if (uploadParams == null || string.IsNullOrEmpty(uploadParams.TableName) || string.IsNullOrEmpty(uploadParams.DbName))
@@ -106,12 +139,14 @@ namespace DMU_Git.Controllers
                         _response.ErrorMessage.Add("Table name is required.");
                         return BadRequest(_response);
 
+
                     }
                     if (string.IsNullOrEmpty(databaseName))
                     {
                         _response.StatusCode = HttpStatusCode.BadRequest;
                         _response.ErrorMessage.Add("database name is required.");
                         return BadRequest(_response);
+
 
                     }
 
@@ -122,10 +157,12 @@ namespace DMU_Git.Controllers
                     var values = data.Select(row =>
                         $"({string.Join(", ", columns.Select(col => $"'{row[col]}'"))})");
 
+
                     var insertQuery = $"INSERT INTO public.\"{mytablername}\" ({string.Join(", ", columns.Select(col => $"\"{col}\""))}) VALUES {string.Join(", ", values)}";
 
                     string connectionString = $"Host=localhost;Database={mydatabasename};Username=postgres;Password=pos@sql";
                     //string connectionString = $"Host=localhost;Database={dbName};Username=postgres;Password=pos@sql";
+
 
                     using (var connection = new NpgsqlConnection(connectionString)) // Replace with  connection string
                     {
@@ -139,7 +176,7 @@ namespace DMU_Git.Controllers
                     _response.StatusCode = HttpStatusCode.Created;
                     _response.ErrorMessage.Add("Data saved to the database.");
                     return Ok(_response);
-                    
+
                 }
             }
             catch (Exception ex)

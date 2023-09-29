@@ -41,8 +41,7 @@ namespace DMU_Git.Services
         //}
         public IEnumerable<EntityColumnDTO> GetColumnsForEntity(string entityName)
         {
-            var entity = _context.EntityListMetadataModels.Include(e => e.EntityColumnListMetadata)
-                .FirstOrDefault(e => e.EntityName == entityName);
+            var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
 
             if (entity == null)
             {
@@ -50,16 +49,18 @@ namespace DMU_Git.Services
                 return null;
             }
 
-            var columnsDTO = entity.EntityColumnListMetadata.Select(column => new EntityColumnDTO
-            {
-                Id = column.Id,
-                EntityColumnName = column.EntityColumnName,
-                Datatype = column.Datatype,
-                Length = column.Length,
-                IsNullable = column.IsNullable,
-                DefaultValue = column.DefaultValue,
-                ColumnPrimaryKey = column.ColumnPrimaryKey
-            }).ToList();
+            var columnsDTO = _context.EntityColumnListMetadataModels
+                .Where(column => column.EntityId == entity.Id)
+                .Select(column => new EntityColumnDTO
+                {
+                    Id = column.Id,
+                    EntityColumnName = column.EntityColumnName,
+                    Datatype = column.Datatype,
+                    Length = column.Length,
+                    IsNullable = column.IsNullable,
+                    DefaultValue = column.DefaultValue,
+                    ColumnPrimaryKey = column.ColumnPrimaryKey
+                }).ToList();
 
             if (columnsDTO.Count == 0)
             {
@@ -69,6 +70,7 @@ namespace DMU_Git.Services
 
             return columnsDTO;
         }
+
 
     }
 }
