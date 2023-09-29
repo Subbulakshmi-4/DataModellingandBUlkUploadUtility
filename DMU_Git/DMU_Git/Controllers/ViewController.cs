@@ -1,18 +1,19 @@
-﻿using DMU_Git.Models.DTO;
+﻿using DMU_Git.Models;
+using DMU_Git.Models.DTO;
 using DMU_Git.Services;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
+using System.Collections.Generic;
 
 namespace DMU_Git.Controllers
 {
     [Route("api/entity")]
-    [EnableCors("AllowAngular")]
+    [EnableCors("AllowAngularDev")]
     [ApiController]
-    public class ViewController : Controller
+    public class ViewController : ControllerBase
     {
         private readonly ViewService _viewService;
-
         public ViewController(ViewService viewService)
         {
             _viewService = viewService;
@@ -22,29 +23,22 @@ namespace DMU_Git.Controllers
         public IActionResult GetColumnsForEntity(string entityName)
         {
             var columnsDTO = _viewService.GetColumnsForEntity(entityName);
-
             if (columnsDTO == null)
             {
-                var response = new APIResponse<List<EntityColumnDTO>>
+                return NotFound(new APIResponse
                 {
                     StatusCode = HttpStatusCode.NotFound,
                     IsSuccess = false,
-                    ErrorMessage = new List<string> { "Columns not found" },
+                    ErrorMessage = new List<string> { "Table not found" },
                     Result = null
-                };
-                return NotFound(response);
+                });
             }
-
-            var apiResponse = new APIResponse<List<EntityColumnDTO>>
+            return Ok(new APIResponse
             {
                 StatusCode = HttpStatusCode.OK,
                 IsSuccess = true,
-                ErrorMessage = null,
-                Result = (List<EntityColumnDTO>)columnsDTO
-            };
-
-            return Ok(apiResponse);
+                Result = columnsDTO
+            });
         }
-
     }
 }
