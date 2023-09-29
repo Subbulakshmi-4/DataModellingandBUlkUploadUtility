@@ -15,11 +15,11 @@ using NpgsqlTypes;
 
 namespace DMU_Git.Controllers
 {
-    [Route("api/excel")]
+    //[Route("api/excel")]
 
     [Route("api/[controller]")]
     [ApiController]
-    //[EnableCors("AllowAngularDev")]
+    [EnableCors("AllowAngularDev")]
     public class ExcelController : Controller
     {
         private readonly IExcelService _excelService;
@@ -42,7 +42,9 @@ namespace DMU_Git.Controllers
         {
             try
             {
-                byte[] excelBytes = _excelService.GenerateExcelFile(columns);
+                // Convert column names to lowercase
+                var lowercaseColumns = columns.Select(col => new EntityColumnDTO { EntityColumnName = col.EntityColumnName.ToLower() }).ToList();
+                byte[] excelBytes = _excelService.GenerateExcelFile(lowercaseColumns);
 
                 // Create a response for downloading the Excel file
                 var fileContentResult = new FileContentResult(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -68,8 +70,12 @@ namespace DMU_Git.Controllers
         }
 
         [HttpPost("upload")]
-        public IActionResult UploadFile(IFormFile file, string tableName)
+        //public IActionResult UploadFile(IFormFile file, [FromBody] UploadParamsDTO uploadParams)
+        //{
+        public IActionResult UploadFile(IFormFile file, string tableName,string databaseName)
         {
+            var mydatabasename = databaseName;
+            var mytablername = tableName;
             if (file == null || file.Length == 0)
             {
                 _response.StatusCode = HttpStatusCode.BadRequest;
@@ -88,15 +94,25 @@ namespace DMU_Git.Controllers
                         _response.StatusCode = HttpStatusCode.BadRequest;
                         _response.ErrorMessage.Add("No data found in the Excel file.");
                         return BadRequest(_response);
-                      
                     }
 
+                    //if (uploadParams == null || string.IsNullOrEmpty(uploadParams.TableName) || string.IsNullOrEmpty(uploadParams.DbName))
+                    //return BadRequest("Table name and database name are required.");
+                    //string tableName = uploadParams.TableName;
+                    //string dbName = uploadParams.DbName;
                     if (string.IsNullOrEmpty(tableName))
                     {
                         _response.StatusCode = HttpStatusCode.BadRequest;
                         _response.ErrorMessage.Add("Table name is required.");
                         return BadRequest(_response);
-                        
+
+                    }
+                    if (string.IsNullOrEmpty(databaseName))
+                    {
+                        _response.StatusCode = HttpStatusCode.BadRequest;
+                        _response.ErrorMessage.Add("database name is required.");
+                        return BadRequest(_response);
+
                     }
 
                     // Get the columns from the first row (assuming all rows have the same structure)
@@ -106,9 +122,10 @@ namespace DMU_Git.Controllers
                     var values = data.Select(row =>
                         $"({string.Join(", ", columns.Select(col => $"'{row[col]}'"))})");
 
-                    var insertQuery = $"INSERT INTO public.\"Country\" ({string.Join(", ", columns.Select(col => $"\"{col}\""))}) VALUES {string.Join(", ", values)}";
+                    var insertQuery = $"INSERT INTO public.\"{mytablername}\" ({string.Join(", ", columns.Select(col => $"\"{col}\""))}) VALUES {string.Join(", ", values)}";
 
-                    string connectionString = "Host=localhost;Database=nopcommerce_testing;Username=postgres;Password=pos@sql";
+                    string connectionString = $"Host=localhost;Database={mydatabasename};Username=postgres;Password=pos@sql";
+                    //string connectionString = $"Host=localhost;Database={dbName};Username=postgres;Password=pos@sql";
 
                     using (var connection = new NpgsqlConnection(connectionString)) // Replace with  connection string
                     {
@@ -119,7 +136,7 @@ namespace DMU_Git.Controllers
                             command.ExecuteNonQuery();
                         }
                     }
-                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.StatusCode = HttpStatusCode.Created;
                     _response.ErrorMessage.Add("Data saved to the database.");
                     return Ok(_response);
                     
