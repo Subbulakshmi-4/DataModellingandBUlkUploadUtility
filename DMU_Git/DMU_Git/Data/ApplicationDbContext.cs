@@ -12,9 +12,6 @@ namespace DMU_Git.Data
 
         }
         public DbSet<EntityListMetadataModel> EntityListMetadataModels { get; set; }
-
-
-
         public DbSet<EntityColumnListMetadataModel> EntityColumnListMetadataModels { get; set; }
 
 
@@ -30,5 +27,15 @@ namespace DMU_Git.Data
 
         //    base.OnModelCreating(modelBuilder);
         //}
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<EntityColumnListMetadataModel>()
+                .HasOne(e => e.EntityList)
+                .WithMany(l => l.EntityColumns)
+                .HasForeignKey(e => e.EntityId)
+                .OnDelete(DeleteBehavior.Cascade);
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }
