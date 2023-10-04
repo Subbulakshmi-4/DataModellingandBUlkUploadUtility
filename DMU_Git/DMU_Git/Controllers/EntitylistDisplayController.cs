@@ -2,12 +2,14 @@
 using DMU_Git.Models;
 using DMU_Git.Models.DTO;
 using DMU_Git.Services.Interface;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 
 namespace DMU_Git.Controllers
 {
     [Route("api/entitylist")]
+    [EnableCors("AllowAngularDev")]
     [ApiController]
     public class EntitylistDisplayController : Controller
     {

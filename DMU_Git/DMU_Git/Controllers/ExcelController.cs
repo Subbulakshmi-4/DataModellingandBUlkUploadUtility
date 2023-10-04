@@ -40,8 +40,8 @@ namespace DMU_Git.Controllers
             try
             {
                 // Convert column names to lowercase
-                var lowercaseColumns = columns.Select(col => new EntityColumnDTO { EntityColumnName = col.EntityColumnName.ToLower() }).ToList();
-                byte[] excelBytes = _excelService.GenerateExcelFile(lowercaseColumns);
+                //var lowercaseColumns = columns.Select(col => new EntityColumnDTO { EntityColumnName = col.EntityColumnName.ToLower() }).ToList();
+                byte[] excelBytes = _excelService.GenerateExcelFile(columns);
 
                 // Create a response for downloading the Excel file
                 var fileContentResult = new FileContentResult(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -69,9 +69,9 @@ namespace DMU_Git.Controllers
 
 
         [HttpPost("upload")]
+
         public IActionResult UploadFile(IFormFile file, string tableName)
         {
-            //var mydatabasename = databaseName;
             var mytablername = tableName;
             if (file == null || file.Length == 0)
             {
@@ -127,7 +127,6 @@ namespace DMU_Git.Controllers
                         _response.IsSuccess = false;
                         return NotFound(_response);
                     }
-               
 
                     // Get the columns from the first row (assuming all rows have the same structure)
                     var columns = data.First().Keys.ToList();
@@ -137,9 +136,9 @@ namespace DMU_Git.Controllers
                         $"({string.Join(", ", columns.Select(col => $"'{row[col]}'"))})");
 
                     var insertQuery = $"INSERT INTO public.\"{mytablername}\" ({string.Join(", ", columns.Select(col => $"\"{col}\""))}) VALUES {string.Join(", ", values)}";
+
                     
                     string connectionString = $"Host=localhost;Database=CheckingTable;Username=postgres;Password=pos@sql";
-                    //string connectionString = $"Host=localhost;Database={dbName};Username=postgres;Password=pos@sql";
 
                     using (var connection = new NpgsqlConnection(connectionString)) // Replace with connection string
                     {
@@ -196,10 +195,6 @@ namespace DMU_Git.Controllers
                 return false;
             }
         }
-
-       
-       
-        
 
     }
     }
