@@ -42,8 +42,9 @@ public class ExcelService : IExcelService
     {
         using (var package = new ExcelPackage(excelFileStream))
         {
-            ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+            ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
 
+          
             int rowCount = worksheet.Dimension.Rows;
             int colCount = worksheet.Dimension.Columns;
 
