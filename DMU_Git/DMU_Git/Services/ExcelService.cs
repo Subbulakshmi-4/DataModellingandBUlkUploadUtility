@@ -16,26 +16,9 @@ public class ExcelService : IExcelService
     {
         _context = context;
     }
-    //public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
-
-    //{
-    //    using (var package = new ExcelPackage())
-    //    {
-    //        // Add a worksheet and populate it
-    //        var worksheet = package.Workbook.Worksheets.Add("Columns");
-
-    //        // Add column headers from the columns list
-    //        for (int i = 0; i < columns.Count; i++)
-    //        {
-    //            // Assuming columns[i].EntityColumnName contains the column name
-    //            worksheet.Cells[1, i + 1].Value = columns[i].EntityColumnName;
-    //        }
-
-    //        return package.GetAsByteArray();
-    //    }
-    //}
 
     public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
+
     {
         using (var package = new ExcelPackage())
         {
@@ -103,8 +86,9 @@ public class ExcelService : IExcelService
     {
         using (var package = new ExcelPackage(excelFileStream))
         {
-            ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+            ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
 
+          
             int rowCount = worksheet.Dimension.Rows;
             int colCount = worksheet.Dimension.Columns;
 
