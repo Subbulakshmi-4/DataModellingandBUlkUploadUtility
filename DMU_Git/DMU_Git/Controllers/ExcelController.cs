@@ -47,7 +47,7 @@ namespace DMU_Git.Controllers
                 var fileContentResult = new FileContentResult(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 {
                     FileDownloadName = "columns.xlsx"
-                };
+                };   
 
                 return fileContentResult;
             }
