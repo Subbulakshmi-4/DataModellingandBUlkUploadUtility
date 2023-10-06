@@ -172,7 +172,7 @@ namespace DMU_Git.Controllers
                     var insertQuery = $"INSERT INTO public.\"{mytablername}\" ({string.Join(", ", columns.Select(col => $"\"{col}\""))}) VALUES {string.Join(", ", values)}";
 
                     
-                    string connectionString = $"Host=localhost;Database=DMUtilityProject;Username=postgres;Password=GoodVibes";
+                    string connectionString = $"Host=localhost;Database=DMUDemo;Username=postgres;Password=GoodVibes";
 
                     using (var connection = new NpgsqlConnection(connectionString)) // Replace with connection string
                     {
@@ -270,6 +270,8 @@ namespace DMU_Git.Controllers
                 return false;
             }
         }
+
+
 
 
         private List<string> GetTableColumns(string tableName)

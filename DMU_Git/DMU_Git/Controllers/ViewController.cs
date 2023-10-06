@@ -41,16 +41,16 @@ namespace DMU_Git.Controllers
             });
         }
 
-        [Route("api/setconnectionstring")]
-        [HttpPost]
-        public IActionResult SetConnectionString([FromBody] ConnectionStringDTO model)
-        {
-            // Process and use the connection string received in the model
-            string connectionString = model.ConnectionString;
+        //[Route("api/setconnectionstring")]
+        //[HttpPost]
+        //public IActionResult SetConnectionString([FromBody] ConnectionStringDTO model)
+        //{
+        //    // Process and use the connection string received in the model
+        //    string connectionString = model.ConnectionString;
 
-            // Perform actions with the connection string (e.g., database operations)
+        //    // Perform actions with the connection string (e.g., database operations)
 
-            return Ok(new { message = "Connection string set successfully" });
-        }
+        //    return Ok(new { message = "Connection string set successfully" });
+        //}
     }
 }
