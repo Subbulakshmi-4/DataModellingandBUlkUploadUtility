@@ -1,5 +1,5 @@
-﻿//using DMU_Git.Models;
-//using DMU_Git.Services;
+﻿
+
 
 using DMU_Git.Models;
 using DMU_Git.Services;
@@ -11,6 +11,8 @@ using DMU_Git.Models.TableCreationRequestDTO;
 using DMU_Git.Models.DTO;
 using System.Net;
 
+
+
 namespace DMU_Git.Controllers
 {
     [Route("api/dynamic")]
@@ -20,10 +22,15 @@ namespace DMU_Git.Controllers
     {
         private readonly DynamicDbService _dynamicDbService;
 
+
+
         public DynamicDbController(DynamicDbService dynamicDbService)
         {
             _dynamicDbService = dynamicDbService;
         }
+
+
+
 
         [HttpPost("create-table")]
         public async Task<ActionResult> CreateTable([FromBody] TableCreationRequestDTO request)
@@ -40,10 +47,16 @@ namespace DMU_Git.Controllers
                         Result = null
                     };
 
+
+
                     return BadRequest(response);
                 }
 
+
+
                 bool tableCreated = await _dynamicDbService.CreateDynamicTableAsync(MapToModel(request));
+
+
 
                 if (tableCreated)
                 {
@@ -54,6 +67,8 @@ namespace DMU_Git.Controllers
                         ErrorMessage = new List<string>(),
                         Result = $"Table '{request.TableName}' created successfully."
                     };
+
+
 
                     return Ok(response);
                 }
@@ -66,6 +81,8 @@ namespace DMU_Git.Controllers
                         ErrorMessage = new List<string> { $"An error occurred while creating the table '{request.TableName}'." },
                         Result = null
                     };
+
+
 
                     return StatusCode((int)HttpStatusCode.InternalServerError, response);
                 }
@@ -80,10 +97,14 @@ namespace DMU_Git.Controllers
                     Result = null
                 };
 
+
+
                 Console.WriteLine(ex);
                 return StatusCode((int)HttpStatusCode.InternalServerError, response);
             }
         }
+
+
 
         // method to map the DTO to the original model
         private TableCreationRequest MapToModel(TableCreationRequestDTO dto)
@@ -96,6 +117,7 @@ namespace DMU_Git.Controllers
                     EntityColumnName = columnDto.EntityColumnName,
                     DataType = columnDto.DataType,
                     Length = columnDto.Length,
+                    Description = columnDto.Description,
                     IsNullable = columnDto.IsNullable,
                     DefaultValue = columnDto.DefaultValue,
                     ColumnPrimaryKey = columnDto.ColumnPrimaryKey

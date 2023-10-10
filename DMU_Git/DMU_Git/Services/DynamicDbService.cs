@@ -1,4 +1,5 @@
 ﻿
+
 using DMU_Git.Data;
 using DMU_Git.Models;
 using Microsoft.EntityFrameworkCore;
@@ -6,16 +7,22 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 
+
+
 namespace DMU_Git.Services
 {
     public class DynamicDbService
     {
         private readonly ApplicationDbContext _dbContext;
 
+
+
         public DynamicDbService(ApplicationDbContext dbContext)
         {
             _dbContext = dbContext;
         }
+
+
 
         public async Task<bool> CreateDynamicTableAsync(TableCreationRequest request)
         {
@@ -24,17 +31,25 @@ namespace DMU_Git.Services
                 // Create the table metadata
                 var entityList = await CreateTableMetadataAsync(request);
 
+
+
                 if (entityList == null)
                 {
                     return false;
                 }
 
+
+
                 // Bind column metadata to the table
                 await BindColumnMetadataAsync(request, entityList);
+
+
 
                 // Create the SQL table
                 var createTableSql = GenerateCreateTableSql(request);
                 await _dbContext.Database.ExecuteSqlRawAsync(createTableSql);
+
+
 
                 Console.WriteLine($"Table '{request.TableName}' created successfully.");
                 return true;
@@ -46,6 +61,8 @@ namespace DMU_Git.Services
             }
         }
 
+
+
         private async Task<EntityListMetadataModel> CreateTableMetadataAsync(TableCreationRequest request)
         {
             var entityList = new EntityListMetadataModel
@@ -55,7 +72,11 @@ namespace DMU_Git.Services
                 UpdatedDate = DateTime.UtcNow,
             };
 
+
+
             _dbContext.EntityListMetadataModels.Add(entityList);
+
+
 
             try
             {
@@ -69,6 +90,8 @@ namespace DMU_Git.Services
             }
         }
 
+
+
         private async Task BindColumnMetadataAsync(TableCreationRequest request, EntityListMetadataModel entityList)
         {
             foreach (var column in request.Columns)
@@ -78,6 +101,7 @@ namespace DMU_Git.Services
                     EntityColumnName = column.EntityColumnName,
                     Datatype = column.DataType,
                     Length = column.Length,
+                    Description = column.Description,
                     IsNullable = column.IsNullable,
                     DefaultValue = column.DefaultValue,
                     ColumnPrimaryKey = column.ColumnPrimaryKey,
@@ -87,6 +111,8 @@ namespace DMU_Git.Services
                 };
                 _dbContext.EntityColumnListMetadataModels.Add(entityColumn);
             }
+
+
 
             try
             {
@@ -98,11 +124,18 @@ namespace DMU_Git.Services
             }
         }
 
+
+
+
         private string GenerateCreateTableSql(TableCreationRequest request)
         {
 
+
+
             var createTableSql = $"CREATE TABLE \"{request.TableName}\" (";
             bool hasColumns = false;
+
+
 
             foreach (var column in request.Columns)
             {
@@ -111,7 +144,11 @@ namespace DMU_Git.Services
                     createTableSql += ",";
                 }
 
+
+
                 createTableSql += $"\"{column.EntityColumnName}\" ";
+
+
 
                 // Handle different data types
                 switch (column.DataType.ToLower()) // Convert to lowercase to handle case-insensitivity
@@ -156,23 +193,33 @@ namespace DMU_Git.Services
                         break;
                 }
 
+
+
                 if (!column.IsNullable)
                 {
                     createTableSql += " NOT NULL";
                 }
+
+
 
                 if (!string.IsNullOrEmpty(column.DefaultValue))
                 {
                     createTableSql += $" DEFAULT '{column.DefaultValue}'";
                 }
 
+
+
                 if (column.ColumnPrimaryKey)
                 {
                     createTableSql += " PRIMARY KEY";
                 }
 
+
+
                 hasColumns = true;
             }
+
+
 
             createTableSql += ");";
             return createTableSql;
