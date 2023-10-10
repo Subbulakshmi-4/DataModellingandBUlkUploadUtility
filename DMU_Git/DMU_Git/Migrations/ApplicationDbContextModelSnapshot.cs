@@ -47,6 +47,10 @@ namespace DMU_Git.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("EntityColumnName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -104,16 +108,18 @@ namespace DMU_Git.Migrations
 
             modelBuilder.Entity("DMU_Git.Models.EntityColumnListMetadataModel", b =>
                 {
-                    b.HasOne("DMU_Git.Models.EntityListMetadataModel", null)
-                        .WithMany("EntityColumnListMetadata")
+                    b.HasOne("DMU_Git.Models.EntityListMetadataModel", "EntityList")
+                        .WithMany("EntityColumns")
                         .HasForeignKey("EntityId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("EntityList");
                 });
 
             modelBuilder.Entity("DMU_Git.Models.EntityListMetadataModel", b =>
                 {
-                    b.Navigation("EntityColumnListMetadata");
+                    b.Navigation("EntityColumns");
                 });
 #pragma warning restore 612, 618
         }
