@@ -6,10 +6,10 @@
         public string EntityColumnName { get; set; }
         public string Datatype { get; set; }
         public int Length { get; set; }
+        public string Description { get; set; } // New property
         public bool IsNullable { get; set; }
         public string DefaultValue { get; set; }
         public bool ColumnPrimaryKey { get; set; }
-
 
         public static explicit operator EntityColumnDTO(EntityColumnListMetadataModel data)
         {
@@ -19,6 +19,7 @@
                 EntityColumnName = data.EntityColumnName,
                 Datatype = data.Datatype,
                 Length = data.Length,
+                Description = data.Description, // Map the Description property
                 IsNullable = data.IsNullable,
                 DefaultValue = data.DefaultValue,
                 ColumnPrimaryKey = data.ColumnPrimaryKey
@@ -33,6 +34,7 @@
                 EntityColumnName = data.EntityColumnName,
                 Datatype = data.Datatype,
                 Length = data.Length,
+                Description = data.Description, // Map the Description property
                 IsNullable = data.IsNullable,
                 DefaultValue = data.DefaultValue,
                 ColumnPrimaryKey = data.ColumnPrimaryKey

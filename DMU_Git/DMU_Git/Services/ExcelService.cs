@@ -8,7 +8,7 @@ using System.IO;
 
 public class ExcelService : IExcelService
 {
- private readonly ApplicationDbContext _context;
+    private readonly ApplicationDbContext _context;
     public ExcelService(ApplicationDbContext context)
     {
         _context = context;
@@ -26,13 +26,15 @@ public class ExcelService : IExcelService
             worksheet.Protection.AllowSelectLockedCells = true;
 
             // Add column headers for the first sheet
-            worksheet.Cells[1, 1].Value = "ID";
-            worksheet.Cells[1, 2].Value = "Column Name";
+            worksheet.Cells[1, 1].Value = "SI.No";
+            worksheet.Cells[1, 2].Value = "Data Item";
             worksheet.Cells[1, 3].Value = "Data Type";
             worksheet.Cells[1, 4].Value = "Length";
-            worksheet.Cells[1, 5].Value = "Nullable";
-            worksheet.Cells[1, 6].Value = "Default Value";
-            worksheet.Cells[1, 7].Value = "Primary Key";
+            worksheet.Cells[1, 5].Value = "Description";
+            worksheet.Cells[1, 6].Value = "Blank Allowed";
+            worksheet.Cells[1, 7].Value = "Default Value";
+            worksheet.Cells[1, 8].Value = "Unique Value";
+
 
             // Populate the first sheet with column details
             for (int i = 0; i < columns.Count; i++)
@@ -42,9 +44,10 @@ public class ExcelService : IExcelService
                 worksheet.Cells[i + 2, 2].Value = column.EntityColumnName;
                 worksheet.Cells[i + 2, 3].Value = column.Datatype;
                 worksheet.Cells[i + 2, 4].Value = column.Length;
-                worksheet.Cells[i + 2, 5].Value = column.IsNullable;
-                worksheet.Cells[i + 2, 6].Value = column.DefaultValue;
-                worksheet.Cells[i + 2, 7].Value = column.ColumnPrimaryKey;
+                worksheet.Cells[i + 2, 5].Value = column.Description;
+                worksheet.Cells[i + 2, 6].Value = column.IsNullable;
+                worksheet.Cells[i + 2, 7].Value = column.DefaultValue;
+                worksheet.Cells[i + 2, 8].Value = column.ColumnPrimaryKey;
             }
 
             int lastRowIndex = worksheet.Dimension.End.Row;
@@ -85,7 +88,7 @@ public class ExcelService : IExcelService
         {
             ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
 
-          
+
             int rowCount = worksheet.Dimension.Rows;
             int colCount = worksheet.Dimension.Columns;
 

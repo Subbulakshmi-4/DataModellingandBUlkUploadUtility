@@ -57,6 +57,7 @@ namespace DMU_Git.Services
                     EntityColumnName = column.EntityColumnName,
                     Datatype = column.Datatype,
                     Length = column.Length,
+                    Description = column.Description,
                     IsNullable = column.IsNullable,
                     DefaultValue = column.DefaultValue,
                     ColumnPrimaryKey = column.ColumnPrimaryKey
