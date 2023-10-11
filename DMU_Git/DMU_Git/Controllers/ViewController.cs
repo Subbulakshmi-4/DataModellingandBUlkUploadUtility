@@ -40,17 +40,5 @@ namespace DMU_Git.Controllers
                 Result = columnsDTO
             });
         }
-
-        //[Route("api/setconnectionstring")]
-        //[HttpPost]
-        //public IActionResult SetConnectionString([FromBody] ConnectionStringDTO model)
-        //{
-        //    // Process and use the connection string received in the model
-        //    string connectionString = model.ConnectionString;
-
-        //    // Perform actions with the connection string (e.g., database operations)
-
-        //    return Ok(new { message = "Connection string set successfully" });
-        //}
     }
 }
