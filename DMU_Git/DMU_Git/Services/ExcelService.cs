@@ -267,6 +267,7 @@ public class ExcelService : IExcelService
         return bytes;
     }
 
+
     public IEnumerable<EntityColumnDTO> GetColumnsForEntity(string entityName)
     {
         var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
@@ -347,8 +348,8 @@ public class ExcelService : IExcelService
 
         LogDTO logDTO = new LogDTO()
         {
-            logParent = logParent,
-            logChildren = new List<LogChild>()
+            LogParentDTOs = logParent,
+            ChildrenDTOs = new List<LogChild>()
         {
             logChild
         }
