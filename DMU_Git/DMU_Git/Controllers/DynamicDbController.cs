@@ -1,14 +1,8 @@
-﻿
-
-
-using DMU_Git.Models;
+﻿using DMU_Git.Models;
 using DMU_Git.Services;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Cors;
 using DMU_Git.Models.TableCreationRequestDTO;
-using DMU_Git.Models.DTO;
 using System.Net;
 
 
@@ -52,7 +46,19 @@ namespace DMU_Git.Controllers
                     return BadRequest(response);
                 }
 
+                var existingTable = await _dynamicDbService.TableExistsAsync(request.TableName);
+                if (existingTable)
+                {
+                    var response = new APIResponse
+                    {
+                        StatusCode = HttpStatusCode.BadRequest,
+                        IsSuccess = false,
+                        ErrorMessage = new List<string> { $"Table '{request.TableName}' already exists." },
+                        Result = null
+                    };
 
+                    return BadRequest(response);
+                }
 
                 bool tableCreated = await _dynamicDbService.CreateDynamicTableAsync(MapToModel(request));
 
