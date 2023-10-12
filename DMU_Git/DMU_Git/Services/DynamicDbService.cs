@@ -1,6 +1,4 @@
-﻿
-
-using DMU_Git.Data;
+﻿using DMU_Git.Data;
 using DMU_Git.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -23,7 +21,14 @@ namespace DMU_Git.Services
         }
 
 
+        public async Task<bool> TableExistsAsync(string tableName)
+        {
+            var lowerCaseTableName = tableName.ToLower();
+            var existingEntity = await _dbContext.EntityListMetadataModels
+                .AnyAsync(e => e.EntityName.ToLower() == lowerCaseTableName);
 
+            return existingEntity;
+        }
         public async Task<bool> CreateDynamicTableAsync(TableCreationRequest request)
         {
             try
@@ -65,6 +70,21 @@ namespace DMU_Git.Services
 
         private async Task<EntityListMetadataModel> CreateTableMetadataAsync(TableCreationRequest request)
         {
+                var lowerCaseTableName = request.TableName.ToLower();
+
+    // Check if table with the same name already exists
+    var existingEntity = await _dbContext.EntityListMetadataModels
+        .FirstOrDefaultAsync(e => e.EntityName.ToLower() == lowerCaseTableName);
+
+
+
+            if (existingEntity != null)
+            {
+                Console.WriteLine($"Table '{request.TableName}' already exists.");
+                return existingEntity;
+            }
+
+            // Create the table metadata if it doesn't exist
             var entityList = new EntityListMetadataModel
             {
                 EntityName = request.TableName,
@@ -72,11 +92,7 @@ namespace DMU_Git.Services
                 UpdatedDate = DateTime.UtcNow,
             };
 
-
-
             _dbContext.EntityListMetadataModels.Add(entityList);
-
-
 
             try
             {
@@ -92,10 +108,55 @@ namespace DMU_Git.Services
 
 
 
+        //private async Task BindColumnMetadataAsync(TableCreationRequest request, EntityListMetadataModel entityList)
+        //{
+        //    foreach (var column in request.Columns)
+        //    {
+        //        var entityColumn = new EntityColumnListMetadataModel
+        //        {
+        //            EntityColumnName = column.EntityColumnName,
+        //            Datatype = column.DataType,
+        //            Length = column.Length,
+        //            Description = column.Description,
+        //            IsNullable = column.IsNullable,
+        //            DefaultValue = column.DefaultValue,
+        //            ColumnPrimaryKey = column.ColumnPrimaryKey,
+        //            CreatedDate = DateTime.UtcNow,
+        //            UpdatedDate = DateTime.UtcNow,
+        //            EntityId = entityList.Id
+        //        };
+        //        _dbContext.EntityColumnListMetadataModels.Add(entityColumn);
+        //    }
+
+
+
+        //    try
+        //    {
+        //        await _dbContext.SaveChangesAsync();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"Error binding column metadata for table '{request.TableName}': {ex.Message}");
+        //    }
+        //}
+
+
         private async Task BindColumnMetadataAsync(TableCreationRequest request, EntityListMetadataModel entityList)
         {
             foreach (var column in request.Columns)
             {
+                // Check if a column with the same name already exists
+                var existingColumn = await _dbContext.EntityColumnListMetadataModels
+                    .FirstOrDefaultAsync(c => c.EntityColumnName.ToLower() == column.EntityColumnName.ToLower() && c.EntityId == entityList.Id);
+
+                if (existingColumn != null)
+                {
+                    // Handle the situation where the column already exists.
+                    // You can update the existing column or log an error, depending on your use case.
+                    Console.WriteLine($"Column '{column.EntityColumnName}' already exists in table '{request.TableName}'.");
+                    continue; // Skip adding this column and move to the next one.
+                }
+
                 var entityColumn = new EntityColumnListMetadataModel
                 {
                     EntityColumnName = column.EntityColumnName,
@@ -109,10 +170,9 @@ namespace DMU_Git.Services
                     UpdatedDate = DateTime.UtcNow,
                     EntityId = entityList.Id
                 };
+
                 _dbContext.EntityColumnListMetadataModels.Add(entityColumn);
             }
-
-
 
             try
             {
@@ -121,9 +181,9 @@ namespace DMU_Git.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error binding column metadata for table '{request.TableName}': {ex.Message}");
+                // Handle the exception as appropriate for your application.
             }
         }
-
 
 
         private string GenerateCreateTableSql(TableCreationRequest request)
