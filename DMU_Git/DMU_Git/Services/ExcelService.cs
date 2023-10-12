@@ -4,6 +4,9 @@ using System.IO;
 using DMU_Git.Data;
 using DMU_Git.Models.DTO;
 using DMU_Git.Services.Interface;
+using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml;
+using System.Data;
 using OfficeOpenXml;
 using OfficeOpenXml.DataValidation;
 using OfficeOpenXml.Style;
@@ -15,6 +18,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient.DataClassification;
 using System.Data;
 using System.Linq;
+
 
 
 public class ExcelService : IExcelService
@@ -224,14 +228,10 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
     }
 
 
-
-
     public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream)
     {
 
-        Workbook workbook = new Workbook();
-        workbook.LoadFromStream(excelFileStream);
-        Worksheet worksheet = workbook.Worksheets[0];
+        
 
         using (var package = new ExcelPackage(excelFileStream))
         {
@@ -246,27 +246,7 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
 
         var data = new List<Dictionary<string, string>>();
 
-        // Extract column names
-        var columnNames = new List<string>();
-        for (int col = 1; col <= colCount; col++)
-        {
-            var columnName = worksheet[1, col].Text;
-            columnNames.Add(columnName);
-        }
-
-        // Read data rows
-        for (int row = 2; row <= rowCount; row++)
-        {
-            var rowData = new Dictionary<string, string>();
-            for (int col = 1; col <= colCount; col++)
-
-
-
-            var data = new List<Dictionary<string, string>>();
-
-
-
-            // Extract column names
+          // Extract column names
             var columnNames = new List<string>();
             for (int col = 1; col <= colCount; col++)
             {
@@ -278,22 +258,16 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
 
             // Read data rows
             for (int row = 2; row <= rowCount; row++)
-
             {
-                var columnName = columnNames[col - 1];
-                var cellValue = worksheet[row, col].Text;
-                rowData[columnName] = cellValue;
+                var rowData = new Dictionary<string, string>();
+                for (int col = 1; col <= colCount; col++)
+                {
+                    var columnName = columnNames[col - 1];
+                    var cellValue = worksheet.Cells[row, col].Value?.ToString();
+                    rowData[columnName] = cellValue;
+                }
+                data.Add(rowData);
             }
-
-            data.Add(rowData);
-
-
-
-
-            return data;
-
-        }
-
         return data;
     }
 
@@ -374,6 +348,16 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
         return bytes;
     }
 
+ public byte[] HexStringToBytes(string hex)
+    {
+        int length = hex.Length / 2;
+        byte[] bytes = new byte[length];
+        for (int i = 0; i < length; i++)
+        {
+            bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+        }
+        return bytes;
+    }
     public IEnumerable<EntityColumnDTO> GetColumnsForEntity(string entityName)
     {
         var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
@@ -407,56 +391,61 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
         return columnsDTO;
     }
 
-    public async Task<LogDTO> Createlog(string tableName, List<string> filedata,string fileName, DataTable successdata)
+    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, DataTable successdata)
     {
         var storeentity = await _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
         LogParent logParent = new LogParent();
         logParent.FileName = fileName;
         logParent.User_Id = 1;
-        logParent.Entity_Id = storeentity.Id;   
-        logParent.Timestamp = DateTime.Now;
+        logParent.Entity_Id = storeentity.Id;
+        logParent.Timestamp = DateTime.UtcNow; ;
         logParent.FailCount = filedata.Count;
         logParent.PassCount = successdata.Rows.Count;
         logParent.RecordCount = logParent.FailCount + logParent.PassCount;
 
         // Insert the LogParent record
-        await _context.logParents.AddAsync(logParent);
-        await _context.SaveChangesAsync(); // Save changes to get the generated ParentId
-
+        _context.logParents.Add(logParent);
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log or handle the exception
+            Console.WriteLine("Error: " + ex.Message);
+        }
 
 
         // Now, you can access the generated ParentId
         int parentId = logParent.ID; // Adjust this based on your actual property name
         string delimiter = ";"; // Specify the delimiter you want
-
         string result = string.Join(delimiter, filedata);
-
-
         LogChild logChild = new LogChild();
         logChild.ParentID = parentId; // Set the ParentId
         logChild.Filedata = result; // Set the values as needed
         logChild.ErrorMessage = "Datatype validation failed"; // Set the values as needed
-
-
-
         // Insert the LogChild record
         await _context.logChilds.AddAsync(logChild);
-        await _context.SaveChangesAsync(); // Save changes for the LogChild record
-
-        LogDTO logDTO = new LogDTO() { 
-        LogParentDTOs = logParent,
-        ChildrenDTOs = new List<LogChild>()
+        try
         {
-            logChild 
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log or handle the exception
+            Console.WriteLine("Error: " + ex.Message);
+        }
+
+        LogDTO logDTO = new LogDTO()
+        {
+            LogParentDTOs = logParent,
+            ChildrenDTOs = new List<LogChild>()
+        {
+            logChild
         }
         };
-
-       return logDTO;
-        
-
+        return logDTO;
     }
 }
 
-
-}
 

@@ -106,6 +106,70 @@ namespace DMU_Git.Migrations
                     b.ToTable("EntityListMetadataModels");
                 });
 
+            modelBuilder.Entity("DMU_Git.Models.LogChild", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ID"));
+
+                    b.Property<string>("ErrorMessage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Filedata")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ParentID")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ParentLogID")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("ParentID");
+
+                    b.ToTable("logChilds");
+                });
+
+            modelBuilder.Entity("DMU_Git.Models.LogParent", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ID"));
+
+                    b.Property<int>("Entity_Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FailCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PassCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RecordCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("User_Id")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ID");
+
+                    b.ToTable("logParents");
+                });
+
             modelBuilder.Entity("DMU_Git.Models.EntityColumnListMetadataModel", b =>
                 {
                     b.HasOne("DMU_Git.Models.EntityListMetadataModel", "EntityList")
@@ -115,6 +179,17 @@ namespace DMU_Git.Migrations
                         .IsRequired();
 
                     b.Navigation("EntityList");
+                });
+
+            modelBuilder.Entity("DMU_Git.Models.LogChild", b =>
+                {
+                    b.HasOne("DMU_Git.Models.LogParent", "Parent")
+                        .WithMany()
+                        .HasForeignKey("ParentID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Parent");
                 });
 
             modelBuilder.Entity("DMU_Git.Models.EntityListMetadataModel", b =>
