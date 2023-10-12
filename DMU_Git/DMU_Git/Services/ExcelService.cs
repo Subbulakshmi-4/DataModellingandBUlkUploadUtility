@@ -2,12 +2,17 @@
 using DMU_Git.Models;
 using DMU_Git.Models.DTO;
 using DMU_Git.Services.Interface;
+
+using Microsoft.EntityFrameworkCore;
+
 using Microsoft.Data.SqlClient.DataClassification;
+
 using OfficeOpenXml;
 using OfficeOpenXml.DataValidation;
 using OfficeOpenXml.Style;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 
@@ -112,6 +117,46 @@ public class ExcelService : IExcelService
         }
     }
 
+
+    public DataTable ReadExcelFromFormFile(IFormFile excelFile)
+    {
+        using (Stream stream = excelFile.OpenReadStream())
+        {
+            using (var package = new ExcelPackage(stream))
+            {
+                DataTable dataTable = new DataTable();
+
+
+
+                ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
+
+
+
+                foreach (var firstRowCell in worksheet.Cells[1, 1, 1, worksheet.Dimension.End.Column])
+                {
+                    dataTable.Columns.Add(firstRowCell.Text);
+                }
+
+
+
+                for (int rowNumber = 2; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
+                {
+                    var row = worksheet.Cells[rowNumber, 1, rowNumber, worksheet.Dimension.End.Column];
+                    var dataRow = dataTable.NewRow();
+                    for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
+                    {
+                        dataRow[col - 1] = row[rowNumber, col].Text;
+                    }
+                    dataTable.Rows.Add(dataRow);
+                }
+
+
+
+                return dataTable;
+            }
+        }
+    }
+
     //private void ApplyDataValidation(List<EntityColumnDTO> columns, ExcelWorksheet columnsWorksheet, ExcelWorksheet columnNamesWorksheet)
     //{
     //    for (int row = 2; row <= columnNamesWorksheet.Dimension.End.Row; row++)
@@ -204,16 +249,23 @@ public class ExcelService : IExcelService
 
 
 
+
     public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream)
     {
         using (var package = new ExcelPackage(excelFileStream))
         {
             ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
+            // handle sheet out range eception
+
 
             int rowCount = worksheet.Dimension.Rows;
             int colCount = worksheet.Dimension.Columns;
 
+
+
             var data = new List<Dictionary<string, string>>();
+
+
 
             // Extract column names
             var columnNames = new List<string>();
@@ -222,6 +274,8 @@ public class ExcelService : IExcelService
                 var columnName = worksheet.Cells[1, col].Value?.ToString();
                 columnNames.Add(columnName);
             }
+
+
 
             // Read data rows
             for (int row = 2; row <= rowCount; row++)
@@ -236,7 +290,169 @@ public class ExcelService : IExcelService
                 data.Add(rowData);
             }
 
+
+
             return data;
         }
     }
+
+
+    public bool IsValidDataType(string data, string expectedDataType)
+    {
+        switch (expectedDataType.ToLower())
+        {
+            case "string":
+                return true; // For a "string" data type, any non-null string is valid.
+            case "int":
+                int intResult;
+                return int.TryParse(data, out intResult); // Check if the data can be parsed as an integer.
+            case "boolean":
+                if (data.Equals("1") || data.Equals("0"))
+                {
+                    return true; // Data is a valid boolean (1 or 0).
+                }
+                bool boolResult;
+                return bool.TryParse(data, out boolResult); // Check if the data can be parsed as a boolean.
+            case "date":
+                DateTime dateResult;
+                return DateTime.TryParse(data, out dateResult); // Check if the data can be parsed as a date.
+            case "bytea":
+                return IsValidByteA(data); // Check if the data is a valid bytea.
+            default:
+                return false; // Unknown data type; you can adjust this logic accordingly.
+        }
+    }
+
+    public bool IsValidByteA(string data)
+    {
+        // Assuming that the data is represented as a hexadecimal string,
+        // you can check if it's a valid hexadecimal representation.
+        if (IsHexString(data))
+        {
+            try
+            {
+                // Convert the hexadecimal string to bytes
+                byte[] bytes = HexStringToBytes(data);
+
+
+
+                // You can add additional checks here if necessary
+                // For example, check if the byte array is not empty or within a specific length range.
+
+
+
+                return true;
+            }
+            catch (Exception)
+            {
+                // An exception occurred during hex string to byte conversion, indicating invalid data.
+                return false;
+            }
+        }
+
+
+
+        return false;
+    }
+
+    public bool IsHexString(string input)
+    {
+        return System.Text.RegularExpressions.Regex.IsMatch(input, @"\A\b[0-9a-fA-F]+\b\Z");
+    }
+    public byte[] HexStringToBytes(string hex)
+    {
+        int length = hex.Length / 2;
+        byte[] bytes = new byte[length];
+        for (int i = 0; i < length; i++)
+        {
+            bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+        }
+        return bytes;
+    }
+
+    public IEnumerable<EntityColumnDTO> GetColumnsForEntity(string entityName)
+    {
+        var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
+
+        if (entity == null)
+        {
+            // Entity not found, return a 404 Not Found response
+            return null;
+        }
+
+        var columnsDTO = _context.EntityColumnListMetadataModels
+            .Where(column => column.EntityId == entity.Id)
+            .Select(column => new EntityColumnDTO
+            {
+                Id = column.Id,
+                EntityColumnName = column.EntityColumnName,
+                Datatype = column.Datatype,
+                Length = column.Length,
+                Description = column.Description,
+                IsNullable = column.IsNullable,
+                DefaultValue = column.DefaultValue,
+                ColumnPrimaryKey = column.ColumnPrimaryKey
+            }).ToList();
+
+        if (columnsDTO.Count == 0)
+        {
+            // No columns found, return a 404 Not Found response with an error message
+            return null;
+        }
+
+        return columnsDTO;
+    }
+
+    public async Task<LogDTO> Createlog(string tableName, List<string> filedata,string fileName, DataTable successdata)
+    {
+        var storeentity = await _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
+        LogParent logParent = new LogParent();
+        logParent.FileName = fileName;
+        logParent.User_Id = 1;
+        logParent.Entity_Id = storeentity.Id;   
+        logParent.Timestamp = DateTime.Now;
+        logParent.FailCount = filedata.Count;
+        logParent.PassCount = successdata.Rows.Count;
+        logParent.RecordCount = logParent.FailCount + logParent.PassCount;
+
+        // Insert the LogParent record
+        await _context.logParents.AddAsync(logParent);
+        await _context.SaveChangesAsync(); // Save changes to get the generated ParentId
+
+
+
+        // Now, you can access the generated ParentId
+        int parentId = logParent.ID; // Adjust this based on your actual property name
+        string delimiter = ";"; // Specify the delimiter you want
+
+        string result = string.Join(delimiter, filedata);
+
+
+        LogChild logChild = new LogChild();
+        logChild.ParentID = parentId; // Set the ParentId
+        logChild.Filedata = result; // Set the values as needed
+        logChild.ErrorMessage = "Datatype validation failed"; // Set the values as needed
+
+
+
+        // Insert the LogChild record
+        await _context.logChilds.AddAsync(logChild);
+        await _context.SaveChangesAsync(); // Save changes for the LogChild record
+
+        LogDTO logDTO = new LogDTO() { 
+        LogParentDTOs = logParent,
+        ChildrenDTOs = new List<LogChild>()
+        {
+            logChild 
+        }
+        };
+
+       return logDTO;
+        
+
+    }
 }
+
+
+}
+
