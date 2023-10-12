@@ -21,6 +21,7 @@ namespace DMU_Git.Services
         }
 
 
+
         public async Task<bool> TableExistsAsync(string tableName)
         {
             var lowerCaseTableName = tableName.ToLower();
@@ -108,37 +109,7 @@ namespace DMU_Git.Services
 
 
 
-        //private async Task BindColumnMetadataAsync(TableCreationRequest request, EntityListMetadataModel entityList)
-        //{
-        //    foreach (var column in request.Columns)
-        //    {
-        //        var entityColumn = new EntityColumnListMetadataModel
-        //        {
-        //            EntityColumnName = column.EntityColumnName,
-        //            Datatype = column.DataType,
-        //            Length = column.Length,
-        //            Description = column.Description,
-        //            IsNullable = column.IsNullable,
-        //            DefaultValue = column.DefaultValue,
-        //            ColumnPrimaryKey = column.ColumnPrimaryKey,
-        //            CreatedDate = DateTime.UtcNow,
-        //            UpdatedDate = DateTime.UtcNow,
-        //            EntityId = entityList.Id
-        //        };
-        //        _dbContext.EntityColumnListMetadataModels.Add(entityColumn);
-        //    }
 
-
-
-        //    try
-        //    {
-        //        await _dbContext.SaveChangesAsync();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine($"Error binding column metadata for table '{request.TableName}': {ex.Message}");
-        //    }
-        //}
 
 
         private async Task BindColumnMetadataAsync(TableCreationRequest request, EntityListMetadataModel entityList)
