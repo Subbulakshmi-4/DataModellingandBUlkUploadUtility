@@ -1,5 +1,7 @@
-﻿using DMU_Git.Data;
-using DMU_Git.Models;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using DMU_Git.Data;
 using DMU_Git.Models.DTO;
 using DMU_Git.Services.Interface;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +9,20 @@ using Npgsql;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Data;
+using OfficeOpenXml;
+using OfficeOpenXml.DataValidation;
+using OfficeOpenXml.Style;
+using Spire.Xls;
+using Spire.Xls.Collections;
+using Spire.Xls.Core;
+using Spire.Xls.Core.Spreadsheet;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient.DataClassification;
+using System.Data;
+using System.Linq;
 using System.Globalization;
+
+
 
 public class ExcelService : IExcelService
 {
@@ -20,98 +35,163 @@ public class ExcelService : IExcelService
 
     public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
     {
-        using (var package = new ExcelPackage())
+
+        Workbook workbook = new Workbook();
+        Worksheet worksheet = workbook.Worksheets[0];
+
+        // Add the first worksheet with detailed column information
+        worksheet.Name = "Columns";
+
+        // Set protection options for the first sheet (read-only)
+        worksheet.Protect("your_password", SheetProtectionType.All);
+
+        // Add column headers for the first sheet
+        worksheet.Range["A1"].Text = "SI.No";
+        worksheet.Range["B1"].Text = "Data Item";
+        worksheet.Range["C1"].Text = "Data Type";
+        worksheet.Range["D1"].Text = "Length";
+        worksheet.Range["E1"].Text = "Description";
+        worksheet.Range["F1"].Text = "Blank Not Allowed";
+        worksheet.Range["G1"].Text = "Default Value";
+        worksheet.Range["H1"].Text = "Unique Value";
+
+        // Populate the first sheet with column details
+        for (int i = 0; i < columns.Count; i++)
         {
-            // Add the first worksheet with detailed column information
-            var worksheet = package.Workbook.Worksheets.Add("Columns");
+            var column = columns[i];
+            worksheet.Range[i + 2, 1].Value = column.Id.ToString();
+            worksheet.Range[i + 2, 2].Text = column.EntityColumnName;
+            worksheet.Range[i + 2, 3].Text = column.Datatype;
+            worksheet.Range[i + 2, 4].Text = column.Length.ToString();
+            worksheet.Range[i + 2, 5].Text = column.Description;
+            worksheet.Range[i + 2, 6].Text = column.IsNullable.ToString();
+            worksheet.Range[i + 2, 7].Text = column.DefaultValue.ToString();
+            worksheet.Range[i + 2, 8].Text = column.ColumnPrimaryKey.ToString();
+        }
 
-            // Set protection options for the first sheet (read-only)
-            worksheet.Protection.IsProtected = true;
-            worksheet.Protection.AllowSelectLockedCells = true;
+        // Add static content in the last row (vertically)
+        var lastRowIndex = worksheet.Rows.Length;
+        worksheet.Range[lastRowIndex + 1, 1].Text = "";
+        worksheet.Range[lastRowIndex + 2, 1].Text = "Note:";
+        worksheet.Range[lastRowIndex + 3, 1].Text = "1. Don't add or delete any columns";
+        worksheet.Range[lastRowIndex + 4, 1].Text = "2. Don't add any extra sheets";
+        worksheet.Range[lastRowIndex + 5, 1].Text = "3. Follow the length if mentioned";
 
-            // Add column headers for the first sheet
-            worksheet.Cells[1, 1].Value = "SI.No";
-            worksheet.Cells[1, 2].Value = "Data Item";
-            worksheet.Cells[1, 3].Value = "Data Type";
-            worksheet.Cells[1, 4].Value = "Length";
-            worksheet.Cells[1, 5].Value = "Description";
-            worksheet.Cells[1, 6].Value = "Blank Not Allowed";
-            worksheet.Cells[1, 7].Value = "Default Value";
-            worksheet.Cells[1, 8].Value = "Unique Value";
+        // Apply yellow background color to the static content cells in the last row
+        var staticContentRange = worksheet.Range[lastRowIndex + 2, 1, lastRowIndex + 5, 5];
+        staticContentRange.Style.FillPattern = ExcelPatternType.Solid;
+        staticContentRange.Style.KnownColor = ExcelColors.Yellow;
 
-            // Populate the first sheet with column details
-            for (int i = 0; i < columns.Count; i++)
+        // Add the second worksheet for column names
+        Worksheet columnNamesWorksheet = workbook.Worksheets.Add("Column Names");
+
+        // Add column names as headers horizontally in the second sheet
+        for (int i = 0; i < columns.Count; i++)
+        {
+            var column = columns[i];
+            columnNamesWorksheet.Range[1, i + 1].Text = column.EntityColumnName;
+        }
+
+        string[] sheetsToRemove = { "Sheet2", "Sheet3", "EvaluationWarning" }; // Names of sheets to be removed
+
+        foreach (var sheetName in sheetsToRemove)
+        {
+            Worksheet sheetToRemove = workbook.Worksheets[sheetName];
+            if (sheetToRemove != null)
             {
-                var column = columns[i];
-                worksheet.Cells[i + 2, 1].Value = column.Id;
-                worksheet.Cells[i + 2, 2].Value = column.EntityColumnName;
-                worksheet.Cells[i + 2, 3].Value = column.Datatype;
-                worksheet.Cells[i + 2, 4].Value = column.Length;
-                worksheet.Cells[i + 2, 5].Value = column.Description;
-                worksheet.Cells[i + 2, 6].Value = column.IsNullable;
-                worksheet.Cells[i + 2, 7].Value = column.DefaultValue;
-                worksheet.Cells[i + 2, 8].Value = column.ColumnPrimaryKey;
+                workbook.Worksheets.Remove(sheetToRemove);
             }
+        }
+        // Loop through columns in "Column Names" worksheet and protect columns without headers
+        var columnCount = columns.Count;
+        // Apply data validation based on the data type to the "Column Names" sheet
 
-            int lastRowIndex = worksheet.Dimension.End.Row;
+        AddDataValidation(columnNamesWorksheet, columns);
 
-            // Add static content in the last row (vertically)
-            worksheet.Cells[lastRowIndex + 1, 1].Value = "";
-            worksheet.Cells[lastRowIndex + 2, 1].Value = "Note:";
-            worksheet.Cells[lastRowIndex + 3, 1].Value = "1. Don't add or delete any columns";
-            worksheet.Cells[lastRowIndex + 4, 1].Value = "2. Don't add any extra sheets";
-            worksheet.Cells[lastRowIndex + 5, 1].Value = "3. Follow the length if mentioned";
+        using (MemoryStream memoryStream = new MemoryStream())
+        {
+            workbook.SaveToStream(memoryStream, FileFormat.Version2013);
+            return memoryStream.ToArray();
+        }
 
-            // Apply yellow background color to the static content cells in the last row
-            using (var staticContentRange = worksheet.Cells[lastRowIndex + 2, 1, lastRowIndex + 5, 5])
+
+    }
+
+    private void AddDataValidation(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns)
+    {
+        int startRow = 2; // The first row where you want validation
+        int endRow = 100000;  // Adjust the last row as needed
+        int columnCount = columnNamesWorksheet.Columns.Length;
+
+        for (int col = 1; col <= columnCount; col++)
+        {
+
+            // Get the data type for the current column
+            string dataType = columns[col - 1].Datatype;
+
+            int length = columns[col - 1].Length;
+            bool isPrimaryKey = columns[col - 1].ColumnPrimaryKey;
+            bool notNull = columns[col - 1].IsNullable;
+            // Specify the range for data validation
+            CellRange range = columnNamesWorksheet.Range[startRow, col, endRow, col];
+            Validation validation = range.DataValidation;
+
+    
+
+            if (dataType.Equals("string", StringComparison.OrdinalIgnoreCase))
             {
-                staticContentRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
-                staticContentRange.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Yellow);
-            }
-
-            var columnNamesWorksheet = package.Workbook.Worksheets.Add("Column Names");
-
-            // Add column names as headers horizontally in the second sheet
-            for (int i = 0; i < columns.Count; i++)
-            {
-                var column = columns[i];
-                columnNamesWorksheet.Cells[1, i + 1].Value = column.EntityColumnName;
-            }
-
-            var columnCount = columns.Count;
-
-            // Loop through columns in "Column Names" worksheet and protect columns without headers
-            for (int col = 1; col <= columnCount; col++)
-            {
-                if (string.IsNullOrWhiteSpace(columnNamesWorksheet.Cells[1, col].Text))
+                // Text validation
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.Formula1 = "1";
+                validation.Formula2 = length.ToString();  // Adjust the maximum text length as needed
+                validation.AllowType = CellDataType.TextLength;
+                validation.InputTitle = "Input Data";
+                validation.InputMessage = $"Type text with a length between 1 and {length} characters.";
+                validation.ErrorTitle = "Error001";
+                if (isPrimaryKey = true)
                 {
-                    columnNamesWorksheet.Column(col).Style.Locked = true;
-                }
-                else
-                {
-                    columnNamesWorksheet.Column(col).Style.Locked = false;
+
+                    validation.InputMessage = "The value must be a unique string with a length between 1 and " + length + " characters.";
+
                 }
             }
+            else if (dataType.Equals("integer", StringComparison.OrdinalIgnoreCase))
+            {
+                // Number validation
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.Formula1 = "1";
+                validation.Formula2 = "1000000";  // Adjust the number range as needed
+                validation.AllowType = CellDataType.Integer;
+                validation.InputTitle = "Input Data";
+                validation.InputMessage = "Type a number between 1 and 1,000,000 in this cell.";
+                validation.ErrorTitle = "Error001";
+            }
+            else if (dataType.Equals("Date", StringComparison.OrdinalIgnoreCase))
+            {
+                // Date validation
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.Formula1 = "01/01/1900";  // Adjust the minimum date as needed
+                validation.Formula2 = "12/12/2023";  // Adjust the maximum date as needed
+                validation.AllowType = CellDataType.Date;
+                validation.InputTitle = "Input Data";
+                validation.InputMessage = "Type a date between 01/01/1900 and 12/31/2100 in this cell.";
+                validation.ErrorTitle = "Error001";
+            }
+            else if (dataType.Equals("boolean", StringComparison.OrdinalIgnoreCase))
+            {
+                // Data validation formula for "TRUE" or "FALSE"
+               validation.Values = new string[] { "true", "false" };
+                validation.ErrorTitle = "Error001";
+                validation.InputMessage = "Please enter 'TRUE' or 'FALSE' in this cell.";
+            }
 
-            // Apply data validation based on the data type to the "Column Names" sheet
 
-
-            columnNamesWorksheet.Protection.IsProtected = true;
-            columnNamesWorksheet.Protection.AllowSelectLockedCells = true;
-            columnNamesWorksheet.Row(1).Style.Locked = true;
-
-            // Create worksheets here
-
-            // Apply custom data validation to the "Column Names" sheet
-            //ApplyDataValidation(columns, worksheet, columnNamesWorksheet);
-
-
-            return package.GetAsByteArray();
+            // Add more conditions for other data types as needed
         }
     }
 
 
-    public DataTable ReadExcelFromFormFile(IFormFile excelFile)
+public DataTable ReadExcelFromFormFile(IFormFile excelFile)
     {
         using (Stream stream = excelFile.OpenReadStream())
         {
@@ -150,24 +230,26 @@ public class ExcelService : IExcelService
         }
     }
 
+
     public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream)
     {
+
+        
+
         using (var package = new ExcelPackage(excelFileStream))
         {
             ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
             // handle sheet out range eception
 
 
-            int rowCount = worksheet.Dimension.Rows;
-            int colCount = worksheet.Dimension.Columns;
+
+        int rowCount = worksheet.Rows.Length;
+        int colCount = worksheet.Columns.Length;
 
 
+        var data = new List<Dictionary<string, string>>();
 
-            var data = new List<Dictionary<string, string>>();
-
-
-
-            // Extract column names
+          // Extract column names
             var columnNames = new List<string>();
             for (int col = 1; col <= colCount; col++)
             {
@@ -189,12 +271,12 @@ public class ExcelService : IExcelService
                 }
                 data.Add(rowData);
             }
-
-
-
-            return data;
-        }
+        return data;
     }
+
+}
+
+
 
     public bool IsValidDataType(string data, string expectedDataType)
     {
@@ -269,6 +351,16 @@ public class ExcelService : IExcelService
         return bytes;
     }
 
+ public byte[] HexStringToBytes(string hex)
+    {
+        int length = hex.Length / 2;
+        byte[] bytes = new byte[length];
+        for (int i = 0; i < length; i++)
+        {
+            bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+        }
+        return bytes;
+    }
     public IEnumerable<EntityColumnDTO> GetColumnsForEntity(string entityName)
     {
         var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
@@ -349,8 +441,8 @@ public class ExcelService : IExcelService
 
         LogDTO logDTO = new LogDTO()
         {
-            logParent = logParent,
-            logChildren = new List<LogChild>()
+            LogParentDTOs = logParent,
+            ChildrenDTOs = new List<LogChild>()
         {
             logChild
         }
