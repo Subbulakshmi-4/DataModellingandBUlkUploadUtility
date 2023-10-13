@@ -101,6 +101,7 @@ namespace DMU_Git.Controllers
                 DataTable validRowsDataTable = excelData.Clone(); // Create a DataTable to store valid rows
                 DataTable successdata = validRowsDataTable.Clone(); // Create a DataTable to store valid rows
                 List<string> badRows = new List<string>();
+                List<string> columns = new List<string>();
                 using (var excelFileStream = file.OpenReadStream())
                 {
                     var data = _excelService.ReadDataFromExcel(excelFileStream);
@@ -112,8 +113,6 @@ namespace DMU_Git.Controllers
                         _response.IsSuccess = false;
                         return Ok(_response);
                     }
-
-
 
                     // Based NotNull Field
                     foreach (var row in data)
@@ -135,7 +134,9 @@ namespace DMU_Git.Controllers
                     var successcount = 0;
 
                     // Get the columns from the first row (assuming all rows have the same structure)
-                    var columns = data.First().Keys.ToList();
+                    var columnnames = data.First().Keys.ToList();
+
+                    columns = columnnames.ToList();
 
                     //Data Type Validation
                     for (int row = 0; row < excelData.Rows.Count; row++)
@@ -158,8 +159,6 @@ namespace DMU_Git.Controllers
                         {
                             validRowsDataTable.Rows.Add(excelData.Rows[row].ItemArray);
                         }
-
-
 
                         // If row validation failed, add the entire row data as a comma-separated string to the badRows list
                         if (rowValidationFailed)
@@ -195,7 +194,6 @@ namespace DMU_Git.Controllers
                         }
 
 
-
                         if (!rowValidationFailed)
                         {
                             successdata.Rows.Add(validRowsDataTable.Rows[row].ItemArray);
@@ -212,6 +210,8 @@ namespace DMU_Git.Controllers
                 var result = await _excelService.Createlog(tableName, badRows,fileName, successdata);
 
                 // Build the values for the SQL INSERT statement
+                _excelService.InsertDataFromDataTableToPostgreSQL(successdata, tableName, columns);
+
                 _response.Result = result;
                 _response.StatusCode = HttpStatusCode.Created;
                 _response.IsSuccess = true;

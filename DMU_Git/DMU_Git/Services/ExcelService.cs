@@ -5,7 +5,9 @@ using DMU_Git.Data;
 using DMU_Git.Models.DTO;
 using DMU_Git.Services.Interface;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using System.Data;
 using OfficeOpenXml;
 using OfficeOpenXml.DataValidation;
@@ -15,11 +17,10 @@ using Spire.Xls.Collections;
 using Spire.Xls.Core;
 using Spire.Xls.Core.Spreadsheet;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.SqlClient.DataClassification;
 using System.Data;
 using System.Linq;
-
-
+using System.Globalization;
+using DMU_Git.Models;
 
 public class ExcelService : IExcelService
 {
@@ -239,12 +240,12 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
             // handle sheet out range eception
 
 
+            int rowCount = worksheet.Dimension.Rows;
 
-        int rowCount = worksheet.Rows.Length;
-        int colCount = worksheet.Columns.Length;
+            int colCount = worksheet.Dimension.Columns;
 
 
-        var data = new List<Dictionary<string, string>>();
+            var data = new List<Dictionary<string, string>>();
 
           // Extract column names
             var columnNames = new List<string>();
@@ -348,16 +349,6 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
         return bytes;
     }
 
- public byte[] HexStringToBytes(string hex)
-    {
-        int length = hex.Length / 2;
-        byte[] bytes = new byte[length];
-        for (int i = 0; i < length; i++)
-        {
-            bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
-        }
-        return bytes;
-    }
     public IEnumerable<EntityColumnDTO> GetColumnsForEntity(string entityName)
     {
         var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
@@ -445,6 +436,69 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
         }
         };
         return logDTO;
+    }
+
+    public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns)
+    {
+
+        var columnProperties = GetColumnsForEntity(tableName).ToList();
+
+        List<Dictionary<string, string>> convertedDataList = new List<Dictionary<string, string>>();
+
+        foreach (DataRow row in data.Rows)
+        {
+            Dictionary<string, string> convertedData = new Dictionary<string, string>();
+
+            for (int i = 0; i < row.ItemArray.Length; i++)
+            {
+                string cellValue = row[i].ToString();
+                EntityColumnDTO columnProperty = columnProperties.FirstOrDefault(col => col.EntityColumnName == data.Columns[i].ColumnName);
+
+                if (columnProperty != null)
+                {
+                    // Use the column name from ColumnProperties as the key and the cell value as the value
+                    convertedData[columnProperty.EntityColumnName] = cellValue;
+                }
+            }
+            convertedDataList.Add(convertedData);
+        }
+
+        // 'convertedDataList' is now a list of dictionaries, each representing a row in the desired format.
+
+        IConfigurationBuilder configurationBuilder = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile("appsettings.Development.json"); // Make sure the file path is correct
+
+        var storeentity = _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
+
+        tableName = storeentity.Result.EntityName;
+
+        IConfigurationRoot configuration = configurationBuilder.Build();
+
+        string connectionString = configuration.GetConnectionString("DefaultConnection");
+
+        using (NpgsqlConnection connection = new NpgsqlConnection(connectionString))
+        {
+            connection.Open();
+
+            foreach (var data2 in convertedDataList)
+            {
+                using (NpgsqlCommand cmd = new NpgsqlCommand())
+                {
+                    cmd.Connection = connection;
+
+                    // Define the case-sensitive table name where you want to insert the data
+                    // Build the INSERT statement
+                    string columns2 = string.Join(", ", data2.Keys.Select(k => $"\"{k}\"")); // Use double quotes for case-sensitive column names
+                    string values = string.Join(", ", data2.Values.Select(v => $"'{v}'")); // Wrap values in single quotes for strings
+                    string query = $"INSERT INTO \"{tableName}\" ({columns2}) VALUES ({values})"; // Use double quotes for case-sensitive table name
+
+                    cmd.CommandText = query;
+                    cmd.ExecuteNonQuery();
+                }
+            }
+
+            connection.Close();
+        }
+
     }
 }
 
