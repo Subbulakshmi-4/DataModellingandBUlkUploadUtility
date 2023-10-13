@@ -104,7 +104,7 @@ namespace DMU_Git.Controllers
                 List<string> columns = new List<string>();
                 using (var excelFileStream = file.OpenReadStream())
                 {
-                    var data = _excelService.ReadDataFromExcel(excelFileStream);
+                    var data = _excelService.ReadDataFromExcel(excelFileStream,excelData.Rows.Count);
 
                     if (data == null || data.Count == 0)
                     {

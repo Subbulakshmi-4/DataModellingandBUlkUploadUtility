@@ -231,14 +231,14 @@ public class ExcelService : IExcelService
                 }
 
 
-
+                dataTable = dataTable.AsEnumerable().Where(row => !row.ItemArray.All(field => field is DBNull || string.IsNullOrWhiteSpace(field.ToString()))).CopyToDataTable();
                 return dataTable;
             }
         }
     }
 
 
-    public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream)
+    public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream,int rowcount)
     {
 
 
@@ -249,7 +249,7 @@ public class ExcelService : IExcelService
             // handle sheet out range eception
 
 
-            int rowCount = worksheet.Dimension.Rows;
+            int rowCount = rowcount+1;
 
             int colCount = worksheet.Dimension.Columns;
 
@@ -403,6 +403,8 @@ public class ExcelService : IExcelService
         logParent.PassCount = successdata.Rows.Count;
         logParent.RecordCount = logParent.FailCount + logParent.PassCount;
 
+
+
         // Insert the LogParent record
         _context.logParents.Add(logParent);
         try
@@ -416,25 +418,33 @@ public class ExcelService : IExcelService
         }
 
 
-        // Now, you can access the generated ParentId
-        int parentId = logParent.ID; // Adjust this based on your actual property name
-        string delimiter = ";"; // Specify the delimiter you want
-        string result = string.Join(delimiter, filedata);
+
         LogChild logChild = new LogChild();
-        logChild.ParentID = parentId; // Set the ParentId
-        logChild.Filedata = result; // Set the values as needed
-        logChild.ErrorMessage = "Datatype validation failed"; // Set the values as needed
-        // Insert the LogChild record
-        await _context.logChilds.AddAsync(logChild);
-        try
+
+
+
+        if (filedata.Count() > 0)
         {
-            await _context.SaveChangesAsync();
+            int parentId = logParent.ID; // Adjust this based on your actual property name
+            string delimiter = ";"; // Specify the delimiter you want
+            string result = string.Join(delimiter, filedata);
+            logChild.ParentID = parentId; // Set the ParentId
+            logChild.Filedata = result; // Set the values as needed
+            logChild.ErrorMessage = "Datatype validation failed"; // Set the values as needed
+                                                                  // Insert the LogChild record
+            await _context.logChilds.AddAsync(logChild);
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log or handle the exception
+                Console.WriteLine("Error: " + ex.Message);
+            }
         }
-        catch (Exception ex)
-        {
-            // Log or handle the exception
-            Console.WriteLine("Error: " + ex.Message);
-        }
+
+
 
         LogDTO logDTO = new LogDTO()
         {
@@ -446,6 +456,62 @@ public class ExcelService : IExcelService
         };
         return logDTO;
     }
+
+    //public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, DataTable successdata)
+    //{
+    //    var storeentity = await _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
+    //    LogParent logParent = new LogParent();
+    //    logParent.FileName = fileName;
+    //    logParent.User_Id = 1;
+    //    logParent.Entity_Id = storeentity.Id;
+    //    logParent.Timestamp = DateTime.UtcNow; ;
+    //    logParent.FailCount = filedata.Count;
+    //    logParent.PassCount = successdata.Rows.Count;
+    //    logParent.RecordCount = logParent.FailCount + logParent.PassCount;
+
+    //    // Insert the LogParent record
+    //    _context.logParents.Add(logParent);
+    //    try
+    //    {
+    //        await _context.SaveChangesAsync();
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        // Log or handle the exception
+    //        Console.WriteLine("Error: " + ex.Message);
+    //    }
+
+
+    //    // Now, you can access the generated ParentId
+    //    int parentId = logParent.ID; // Adjust this based on your actual property name
+    //    string delimiter = ";"; // Specify the delimiter you want
+    //    string result = string.Join(delimiter, filedata);
+    //    LogChild logChild = new LogChild();
+    //    logChild.ParentID = parentId; // Set the ParentId
+    //    logChild.Filedata = result; // Set the values as needed
+    //    logChild.ErrorMessage = "Datatype validation failed"; // Set the values as needed
+    //    // Insert the LogChild record
+    //    await _context.logChilds.AddAsync(logChild);
+    //    try
+    //    {
+    //        await _context.SaveChangesAsync();
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        // Log or handle the exception
+    //        Console.WriteLine("Error: " + ex.Message);
+    //    }
+
+    //    LogDTO logDTO = new LogDTO()
+    //    {
+    //        LogParentDTOs = logParent,
+    //        ChildrenDTOs = new List<LogChild>()
+    //    {
+    //        logChild
+    //    }
+    //    };
+    //    return logDTO;
+    //}
 
     public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns)
     {

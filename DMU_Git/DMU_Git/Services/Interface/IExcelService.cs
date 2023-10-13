@@ -12,7 +12,7 @@ namespace DMU_Git.Services.Interface
         byte[] GenerateExcelFile(List<EntityColumnDTO> columns);
         //important
         //List<MyDataModelDto> ReadDataFromExcel(Stream excelFileStream);
-        List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream);
+        List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream,int rowcount);
         public DataTable ReadExcelFromFormFile(IFormFile excelFile);
         public bool IsValidDataType(string data, string expectedDataType);
         public IEnumerable<EntityColumnDTO> GetColumnsForEntity(string entityName);
