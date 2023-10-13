@@ -17,12 +17,10 @@ using Spire.Xls.Collections;
 using Spire.Xls.Core;
 using Spire.Xls.Core.Spreadsheet;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.SqlClient.DataClassification;
 using System.Data;
 using System.Linq;
 using System.Globalization;
-
-
+using DMU_Git.Models;
 
 public class ExcelService : IExcelService
 {
@@ -242,12 +240,12 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
             // handle sheet out range eception
 
 
+            int rowCount = worksheet.Dimension.Rows;
 
-        int rowCount = worksheet.Rows.Length;
-        int colCount = worksheet.Columns.Length;
+            int colCount = worksheet.Dimension.Columns;
 
 
-        var data = new List<Dictionary<string, string>>();
+            var data = new List<Dictionary<string, string>>();
 
           // Extract column names
             var columnNames = new List<string>();
@@ -351,16 +349,6 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
         return bytes;
     }
 
- public byte[] HexStringToBytes(string hex)
-    {
-        int length = hex.Length / 2;
-        byte[] bytes = new byte[length];
-        for (int i = 0; i < length; i++)
-        {
-            bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
-        }
-        return bytes;
-    }
     public IEnumerable<EntityColumnDTO> GetColumnsForEntity(string entityName)
     {
         var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
