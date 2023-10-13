@@ -17,5 +17,7 @@ namespace DMU_Git.Services.Interface
         public bool IsValidDataType(string data, string expectedDataType);
         public IEnumerable<EntityColumnDTO> GetColumnsForEntity(string entityName);
         public Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, DataTable successdata);
+
+        public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns);
     }
 }

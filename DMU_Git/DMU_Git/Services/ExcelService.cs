@@ -3,8 +3,11 @@ using DMU_Git.Models;
 using DMU_Git.Models.DTO;
 using DMU_Git.Services.Interface;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using System.Data;
+using System.Globalization;
 
 public class ExcelService : IExcelService
 {
@@ -91,7 +94,7 @@ public class ExcelService : IExcelService
             }
 
             // Apply data validation based on the data type to the "Column Names" sheet
-            
+
 
             columnNamesWorksheet.Protection.IsProtected = true;
             columnNamesWorksheet.Protection.AllowSelectLockedCells = true;
@@ -146,7 +149,7 @@ public class ExcelService : IExcelService
             }
         }
     }
-  
+
     public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream)
     {
         using (var package = new ExcelPackage(excelFileStream))
@@ -192,7 +195,6 @@ public class ExcelService : IExcelService
             return data;
         }
     }
-
 
     public bool IsValidDataType(string data, string expectedDataType)
     {
@@ -354,6 +356,69 @@ public class ExcelService : IExcelService
         }
         };
         return logDTO;
+    }
+
+    public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns)
+    {
+
+        var columnProperties = GetColumnsForEntity(tableName).ToList();
+
+        List<Dictionary<string, string>> convertedDataList = new List<Dictionary<string, string>>();
+
+        foreach (DataRow row in data.Rows)
+        {
+            Dictionary<string, string> convertedData = new Dictionary<string, string>();
+
+            for (int i = 0; i < row.ItemArray.Length; i++)
+            {
+                string cellValue = row[i].ToString();
+                EntityColumnDTO columnProperty = columnProperties.FirstOrDefault(col => col.EntityColumnName == data.Columns[i].ColumnName);
+
+                if (columnProperty != null)
+                {
+                    // Use the column name from ColumnProperties as the key and the cell value as the value
+                    convertedData[columnProperty.EntityColumnName] = cellValue;
+                }
+            }
+            convertedDataList.Add(convertedData);
+        }
+
+        // 'convertedDataList' is now a list of dictionaries, each representing a row in the desired format.
+
+        IConfigurationBuilder configurationBuilder = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile("appsettings.Development.json"); // Make sure the file path is correct
+
+        var storeentity = _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
+
+        tableName = storeentity.Result.EntityName;
+
+        IConfigurationRoot configuration = configurationBuilder.Build();
+
+        string connectionString = configuration.GetConnectionString("DefaultConnection");
+
+        using (NpgsqlConnection connection = new NpgsqlConnection(connectionString))
+        {
+            connection.Open();
+
+            foreach (var data2 in convertedDataList)
+            {
+                using (NpgsqlCommand cmd = new NpgsqlCommand())
+                {
+                    cmd.Connection = connection;
+
+                    // Define the case-sensitive table name where you want to insert the data
+                    // Build the INSERT statement
+                    string columns2 = string.Join(", ", data2.Keys.Select(k => $"\"{k}\"")); // Use double quotes for case-sensitive column names
+                    string values = string.Join(", ", data2.Values.Select(v => $"'{v}'")); // Wrap values in single quotes for strings
+                    string query = $"INSERT INTO \"{tableName}\" ({columns2}) VALUES ({values})"; // Use double quotes for case-sensitive table name
+
+                    cmd.CommandText = query;
+                    cmd.ExecuteNonQuery();
+                }
+            }
+
+            connection.Close();
+        }
+
     }
 }
 
