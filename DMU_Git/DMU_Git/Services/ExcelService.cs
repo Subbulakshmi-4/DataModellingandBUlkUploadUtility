@@ -134,26 +134,35 @@ public class ExcelService : IExcelService
             CellRange range = columnNamesWorksheet.Range[startRow, col, endRow, col];
             Validation validation = range.DataValidation;
 
-    
-
             if (dataType.Equals("string", StringComparison.OrdinalIgnoreCase))
             {
                 // Text validation
                 validation.CompareOperator = ValidationComparisonOperator.Between;
-                validation.Formula1 = "1";
-                validation.Formula2 = length.ToString();  // Adjust the maximum text length as needed
-                validation.AllowType = CellDataType.TextLength;
-                validation.InputTitle = "Input Data";
-                validation.InputMessage = $"Type text with a length between 1 and {length} characters.";
-                validation.ErrorTitle = "Error001";
-                if (isPrimaryKey = true)
+                if (length > 0)
                 {
-
-                    validation.InputMessage = "The value must be a unique string with a length between 1 and " + length + " characters.";
-
+                    validation.Formula1 = "1";
+                    validation.Formula2 = length.ToString(); // Adjust the maximum text length as needed
+                    validation.AllowType = CellDataType.TextLength;
+                    validation.InputTitle = "Input Data";
+                    validation.InputMessage = $"Type text with a length between 1 and {length} characters.";
+                    validation.ErrorTitle = "Error001";
+                    if (isPrimaryKey)
+                    {
+                        validation.InputMessage = "The value must be a unique string with a length between 1 and " + length + " characters.";
+                    }
+                }
+                else
+                {
+                    // Skip length validation for length == 0
+                    validation.Formula1 = "0"; // Set a minimum text length of 0
+                    validation.Formula2 = "10000000";// Set a minimum text length of 1
+                    validation.AllowType = CellDataType.TextLength;
+                    validation.InputTitle = "Input Data";
+                    validation.InputMessage = "Type any text .";
+                    validation.ErrorTitle = "Error001";
                 }
             }
-            else if (dataType.Equals("integer", StringComparison.OrdinalIgnoreCase))
+            else if (dataType.Equals("int", StringComparison.OrdinalIgnoreCase))
             {
                 // Number validation
                 validation.CompareOperator = ValidationComparisonOperator.Between;
@@ -172,13 +181,13 @@ public class ExcelService : IExcelService
                 validation.Formula2 = "12/12/2023";  // Adjust the maximum date as needed
                 validation.AllowType = CellDataType.Date;
                 validation.InputTitle = "Input Data";
-                validation.InputMessage = "Type a date between 01/01/1900 and 12/31/2100 in this cell.";
+                validation.InputMessage = "Type a date between 01/01/1900 and 12/12/2023 in this cell.";
                 validation.ErrorTitle = "Error001";
             }
             else if (dataType.Equals("boolean", StringComparison.OrdinalIgnoreCase))
             {
                 // Data validation formula for "TRUE" or "FALSE"
-               validation.Values = new string[] { "true", "false" };
+                validation.Values = new string[] { "true", "false" };
                 validation.ErrorTitle = "Error001";
                 validation.InputMessage = "Please enter 'TRUE' or 'FALSE' in this cell.";
             }
@@ -189,7 +198,7 @@ public class ExcelService : IExcelService
     }
 
 
-public DataTable ReadExcelFromFormFile(IFormFile excelFile)
+    public DataTable ReadExcelFromFormFile(IFormFile excelFile)
     {
         using (Stream stream = excelFile.OpenReadStream())
         {
@@ -232,7 +241,7 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
     public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream)
     {
 
-        
+
 
         using (var package = new ExcelPackage(excelFileStream))
         {
@@ -247,7 +256,7 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
 
             var data = new List<Dictionary<string, string>>();
 
-          // Extract column names
+            // Extract column names
             var columnNames = new List<string>();
             for (int col = 1; col <= colCount; col++)
             {
@@ -269,10 +278,10 @@ public DataTable ReadExcelFromFormFile(IFormFile excelFile)
                 }
                 data.Add(rowData);
             }
-        return data;
-    }
+            return data;
+        }
 
-}
+    }
 
 
 
