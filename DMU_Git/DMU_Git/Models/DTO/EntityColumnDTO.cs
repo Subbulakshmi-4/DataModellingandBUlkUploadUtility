@@ -1,9 +1,15 @@
-﻿namespace DMU_Git.Models.DTO
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace DMU_Git.Models.DTO
 {
     public class EntityColumnDTO
     {
         public int Id { get; set; }
         public string EntityColumnName { get; set; }
+        public string entityname { get; set; }
+
+        [ForeignKey("EntityId")]
+        public int EntityId { get; set; }
         public string Datatype { get; set; }
         public int Length { get; set; }
         public string Description { get; set; } // New property
@@ -17,6 +23,7 @@
             {
                 Id = data.Id,
                 EntityColumnName = data.EntityColumnName,
+                EntityId = data.EntityId,
                 Datatype = data.Datatype,
                 Length = data.Length,
                 Description = data.Description, // Map the Description property
@@ -32,6 +39,7 @@
             {
                 Id = data.Id,
                 EntityColumnName = data.EntityColumnName,
+                EntityId = data.EntityId,
                 Datatype = data.Datatype,
                 Length = data.Length,
                 Description = data.Description, // Map the Description property

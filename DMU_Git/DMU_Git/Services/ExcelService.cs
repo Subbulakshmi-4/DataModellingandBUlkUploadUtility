@@ -33,39 +33,46 @@ public class ExcelService : IExcelService
 
     public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
     {
+       
 
         Workbook workbook = new Workbook();
         Worksheet worksheet = workbook.Worksheets[0];
-
+        
         // Add the first worksheet with detailed column information
-        worksheet.Name = "Columns";
-
+        worksheet.Name = "DataDictionary";
+            
         // Set protection options for the first sheet (read-only)
         worksheet.Protect("your_password", SheetProtectionType.All);
 
+        
+
         // Add column headers for the first sheet
-        worksheet.Range["A1"].Text = "SI.No";
-        worksheet.Range["B1"].Text = "Data Item";
-        worksheet.Range["C1"].Text = "Data Type";
-        worksheet.Range["D1"].Text = "Length";
-        worksheet.Range["E1"].Text = "Description";
-        worksheet.Range["F1"].Text = "Blank Not Allowed";
-        worksheet.Range["G1"].Text = "Default Value";
-        worksheet.Range["H1"].Text = "Unique Value";
+        worksheet.Range["A2"].Text = "SI.No";
+        worksheet.Range["B2"].Text = "Data Item";
+        worksheet.Range["C2"].Text = "Data Type";
+        worksheet.Range["D2"].Text = "Length";
+        worksheet.Range["E2"].Text = "Description";
+        worksheet.Range["F2"].Text = "Blank Not Allowed";
+        worksheet.Range["G2"].Text = "Default Value";
+        worksheet.Range["H2"].Text = "Unique Value";
 
         // Populate the first sheet with column details
         for (int i = 0; i < columns.Count; i++)
         {
             var column = columns[i];
-            worksheet.Range[i + 2, 1].Value = column.Id.ToString();
-            worksheet.Range[i + 2, 2].Text = column.EntityColumnName;
-            worksheet.Range[i + 2, 3].Text = column.Datatype;
-            worksheet.Range[i + 2, 4].Text = column.Length.ToString();
-            worksheet.Range[i + 2, 5].Text = column.Description;
-            worksheet.Range[i + 2, 6].Text = column.IsNullable.ToString();
-            worksheet.Range[i + 2, 7].Text = column.DefaultValue.ToString();
-            worksheet.Range[i + 2, 8].Text = column.ColumnPrimaryKey.ToString();
+            worksheet.Range[i + 3, 1].Value = column.Id.ToString();
+            worksheet.Range[i + 3, 2].Text = column.EntityColumnName;
+            worksheet.Range[i + 3, 3].Text = column.Datatype;
+            worksheet.Range[i + 3, 4].Text = column.Length.ToString();
+            worksheet.Range[i + 3, 5].Text = column.Description;
+            worksheet.Range[i + 3, 6].Text = column.IsNullable.ToString();
+            worksheet.Range[i + 3, 7].Text = column.DefaultValue.ToString();
+            worksheet.Range[i + 3, 8].Text = column.ColumnPrimaryKey.ToString();
+            int entityId = GetEntityIdByEntityName(column.entityname);
+            worksheet.Range["A1"].Text = entityId.ToString();
         }
+        worksheet.HideRow(1);
+       
 
         // Add static content in the last row (vertically)
         var lastRowIndex = worksheet.Rows.Length;
@@ -80,8 +87,10 @@ public class ExcelService : IExcelService
         staticContentRange.Style.FillPattern = ExcelPatternType.Solid;
         staticContentRange.Style.KnownColor = ExcelColors.Yellow;
 
+       
+
         // Add the second worksheet for column names
-        Worksheet columnNamesWorksheet = workbook.Worksheets.Add("Column Names");
+        Worksheet columnNamesWorksheet = workbook.Worksheets.Add("Fill data");
 
         // Add column names as headers horizontally in the second sheet
         for (int i = 0; i < columns.Count; i++)
@@ -90,8 +99,7 @@ public class ExcelService : IExcelService
             columnNamesWorksheet.Range[1, i + 1].Text = column.EntityColumnName;
         }
 
-        string[] sheetsToRemove = { "Sheet2", "Sheet3", "EvaluationWarning" }; // Names of sheets to be removed
-
+        string[] sheetsToRemove = { "Sheet2", "Sheet3"}; // Names of sheets to be removed
         foreach (var sheetName in sheetsToRemove)
         {
             Worksheet sheetToRemove = workbook.Worksheets[sheetName];
@@ -105,14 +113,12 @@ public class ExcelService : IExcelService
         // Apply data validation based on the data type to the "Column Names" sheet
 
         AddDataValidation(columnNamesWorksheet, columns);
-
+        
         using (MemoryStream memoryStream = new MemoryStream())
         {
             workbook.SaveToStream(memoryStream, FileFormat.Version2013);
             return memoryStream.ToArray();
         }
-
-
     }
 
     private void AddDataValidation(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns)
@@ -145,7 +151,7 @@ public class ExcelService : IExcelService
                     validation.AllowType = CellDataType.TextLength;
                     validation.InputTitle = "Input Data";
                     validation.InputMessage = $"Type text with a length between 1 and {length} characters.";
-                    validation.ErrorTitle = "Error001";
+                    validation.ErrorTitle = "Error";
                     if (isPrimaryKey)
                     {
                         validation.InputMessage = "The value must be a unique string with a length between 1 and " + length + " characters.";
@@ -158,8 +164,9 @@ public class ExcelService : IExcelService
                     validation.Formula2 = "10000000";// Set a minimum text length of 1
                     validation.AllowType = CellDataType.TextLength;
                     validation.InputTitle = "Input Data";
-                    validation.InputMessage = "Type any text .";
-                    validation.ErrorTitle = "Error001";
+                    validation.InputMessage = "Enter the string";
+                    validation.ErrorTitle = "Error";
+                    validation.ErrorMessage = "Entered value exceeds the length";
                 }
             }
             else if (dataType.Equals("int", StringComparison.OrdinalIgnoreCase))
@@ -171,7 +178,9 @@ public class ExcelService : IExcelService
                 validation.AllowType = CellDataType.Integer;
                 validation.InputTitle = "Input Data";
                 validation.InputMessage = "Type a number between 1 and 1,000,000 in this cell.";
-                validation.ErrorTitle = "Error001";
+                validation.ErrorTitle = "Error";
+                validation.ErrorMessage = "Enter a valid number";
+
             }
             else if (dataType.Equals("Date", StringComparison.OrdinalIgnoreCase))
             {
@@ -188,8 +197,10 @@ public class ExcelService : IExcelService
             {
                 // Data validation formula for "TRUE" or "FALSE"
                 validation.Values = new string[] { "true", "false" };
-                validation.ErrorTitle = "Error001";
-                validation.InputMessage = "Please enter 'TRUE' or 'FALSE' in this cell.";
+                validation.ErrorTitle = "Error";
+                validation.InputTitle = "Input Data";
+                validation.ErrorMessage = "Select values from dropdown";
+                validation.InputMessage = "Select values from dropdown";
             }
 
 
@@ -197,6 +208,36 @@ public class ExcelService : IExcelService
         }
     }
 
+    private int GetEntityIdByEntityName(string entityName)
+    {
+        // Assuming you have a list of EntityListMetadataModel instances
+        List<EntityListMetadataModel> entityListMetadataModels = GetEntityListMetadataModels(); // Implement this method to fetch your metadata models
+
+        // Use LINQ to find the entity Id
+        int entityId = entityListMetadataModels
+            .Where(model => model.EntityName == entityName)
+            .Select(model => model.Id)
+            .FirstOrDefault();
+
+        if (entityId != 0) // Check if a valid entity Id was found
+        {
+            return entityId;
+        }
+        else
+        {
+            // Handle the case where the entity name is not found
+            throw new Exception("Entity not found");
+        }
+    }
+
+    private List<EntityListMetadataModel> GetEntityListMetadataModels()
+    {
+        {
+            // Assuming YourDbContext is the Entity Framework DbContext for your database
+            List<EntityListMetadataModel> entityListMetadataModels = _context.EntityListMetadataModels.ToList();
+            return entityListMetadataModels;
+        }
+    }
 
     public DataTable ReadExcelFromFormFile(IFormFile excelFile)
     {
