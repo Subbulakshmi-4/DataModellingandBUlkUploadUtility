@@ -7,6 +7,9 @@
         public string Datatype { get; set; }
         public int Length { get; set; }
         public bool IsNullable { get; set; }
+        public string True { get; set; }
+
+        public string False { get; set; }
         public string DefaultValue { get; set; }
         public bool ColumnPrimaryKey { get; set; }
     }
