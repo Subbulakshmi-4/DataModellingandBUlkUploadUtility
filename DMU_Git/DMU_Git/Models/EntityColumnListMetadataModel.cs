@@ -22,6 +22,10 @@ namespace DMU_Git.Models
 
         public string DefaultValue { get; set; }
 
+        public string True { get; set; }
+
+        public string False { get; set; }
+
         public bool ColumnPrimaryKey { get; set; }
 
         public EntityListMetadataModel EntityList { get; set; }

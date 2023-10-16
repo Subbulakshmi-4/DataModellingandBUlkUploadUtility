@@ -29,7 +29,11 @@ namespace DMU_Git.Controllers
 
         [HttpPost("create-table")]
         public async Task<ActionResult> CreateTable([FromBody] TableCreationRequestDTO request)
-        {
+        
+        
+        
+        
+     {
             try
             {
                 if (request == null)
@@ -125,6 +129,8 @@ namespace DMU_Git.Controllers
                     DataType = columnDto.DataType,
                     Length = columnDto.Length,
                     Description = columnDto.Description,
+                    True = columnDto.True,
+                    False = columnDto.False,    
                     IsNullable = columnDto.IsNullable,
                     DefaultValue = columnDto.DefaultValue,
                     ColumnPrimaryKey = columnDto.ColumnPrimaryKey
