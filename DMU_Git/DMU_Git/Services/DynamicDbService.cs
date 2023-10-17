@@ -7,11 +7,15 @@ using System.Threading.Tasks;
 
 
 
+
+
 namespace DMU_Git.Services
 {
     public class DynamicDbService
     {
         private readonly ApplicationDbContext _dbContext;
+
+
 
 
 
@@ -22,11 +26,15 @@ namespace DMU_Git.Services
 
 
 
+
+
         public async Task<bool> TableExistsAsync(string tableName)
         {
             var lowerCaseTableName = tableName.ToLower();
             var existingEntity = await _dbContext.EntityListMetadataModels
                 .AnyAsync(e => e.EntityName.ToLower() == lowerCaseTableName);
+
+
 
             return existingEntity;
         }
@@ -39,10 +47,14 @@ namespace DMU_Git.Services
 
 
 
+
+
                 if (entityList == null)
                 {
                     return false;
                 }
+
+
 
 
 
@@ -51,9 +63,13 @@ namespace DMU_Git.Services
 
 
 
+
+
                 // Create the SQL table
                 var createTableSql = GenerateCreateTableSql(request);
                 await _dbContext.Database.ExecuteSqlRawAsync(createTableSql);
+
+
 
 
 
@@ -69,13 +85,19 @@ namespace DMU_Git.Services
 
 
 
+
+
         private async Task<EntityListMetadataModel> CreateTableMetadataAsync(TableCreationRequest request)
         {
-                var lowerCaseTableName = request.TableName.ToLower();
+            var lowerCaseTableName = request.TableName.ToLower();
 
-    // Check if table with the same name already exists
-    var existingEntity = await _dbContext.EntityListMetadataModels
-        .FirstOrDefaultAsync(e => e.EntityName.ToLower() == lowerCaseTableName);
+
+
+            // Check if table with the same name already exists
+            var existingEntity = await _dbContext.EntityListMetadataModels
+                .FirstOrDefaultAsync(e => e.EntityName.ToLower() == lowerCaseTableName);
+
+
 
 
 
@@ -85,6 +107,8 @@ namespace DMU_Git.Services
                 return existingEntity;
             }
 
+
+
             // Create the table metadata if it doesn't exist
             var entityList = new EntityListMetadataModel
             {
@@ -93,7 +117,11 @@ namespace DMU_Git.Services
                 UpdatedDate = DateTime.UtcNow,
             };
 
+
+
             _dbContext.EntityListMetadataModels.Add(entityList);
+
+
 
             try
             {
@@ -112,6 +140,9 @@ namespace DMU_Git.Services
 
 
 
+
+
+
         private async Task BindColumnMetadataAsync(TableCreationRequest request, EntityListMetadataModel entityList)
         {
             foreach (var column in request.Columns)
@@ -120,13 +151,15 @@ namespace DMU_Git.Services
                 var existingColumn = await _dbContext.EntityColumnListMetadataModels
                     .FirstOrDefaultAsync(c => c.EntityColumnName.ToLower() == column.EntityColumnName.ToLower() && c.EntityId == entityList.Id);
 
+
+
                 if (existingColumn != null)
                 {
-                    // Handle the situation where the column already exists.
-                    // You can update the existing column or log an error, depending on your use case.
                     Console.WriteLine($"Column '{column.EntityColumnName}' already exists in table '{request.TableName}'.");
                     continue; // Skip adding this column and move to the next one.
                 }
+
+
 
                 var entityColumn = new EntityColumnListMetadataModel
                 {
@@ -135,17 +168,21 @@ namespace DMU_Git.Services
                     Length = column.Length,
                     Description = column.Description,
                     IsNullable = column.IsNullable,
+                    True=column.True,
+                    False=column.False,
                     DefaultValue = column.DefaultValue,
-                    True = column.True,
-                    False = column.False,
                     ColumnPrimaryKey = column.ColumnPrimaryKey,
                     CreatedDate = DateTime.UtcNow,
                     UpdatedDate = DateTime.UtcNow,
                     EntityId = entityList.Id
                 };
 
+
+
                 _dbContext.EntityColumnListMetadataModels.Add(entityColumn);
             }
+
+
 
             try
             {
@@ -159,13 +196,20 @@ namespace DMU_Git.Services
         }
 
 
+
+
+
         private string GenerateCreateTableSql(TableCreationRequest request)
         {
 
 
 
+
+
             var createTableSql = $"CREATE TABLE \"{request.TableName}\" (";
             bool hasColumns = false;
+
+
 
 
 
@@ -178,7 +222,11 @@ namespace DMU_Git.Services
 
 
 
+
+
                 createTableSql += $"\"{column.EntityColumnName}\" ";
+
+
 
 
 
@@ -227,10 +275,14 @@ namespace DMU_Git.Services
 
 
 
+
+
                 if (!column.IsNullable)
                 {
                     createTableSql += " NOT NULL";
                 }
+
+
 
 
 
@@ -241,10 +293,14 @@ namespace DMU_Git.Services
 
 
 
+
+
                 if (column.ColumnPrimaryKey)
                 {
                     createTableSql += " PRIMARY KEY";
                 }
+
+
 
 
 
@@ -253,9 +309,10 @@ namespace DMU_Git.Services
 
 
 
+
+
             createTableSql += ");";
             return createTableSql;
         }
     }
 }
-

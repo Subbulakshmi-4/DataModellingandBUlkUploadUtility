@@ -130,7 +130,7 @@ namespace DMU_Git.Controllers
                     Length = columnDto.Length,
                     Description = columnDto.Description,
                     True = columnDto.True,
-                    False = columnDto.False,    
+                    False = columnDto.False,
                     IsNullable = columnDto.IsNullable,
                     DefaultValue = columnDto.DefaultValue,
                     ColumnPrimaryKey = columnDto.ColumnPrimaryKey
