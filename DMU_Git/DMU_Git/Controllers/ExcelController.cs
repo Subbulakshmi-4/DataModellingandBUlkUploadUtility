@@ -12,6 +12,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using DMU_Git.Services;
 using System.Data;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using OfficeOpenXml;
+using System.Diagnostics;
+using System;
+using System.IO;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace DMU_Git.Controllers
 {
@@ -24,6 +29,8 @@ namespace DMU_Git.Controllers
 
         private readonly IExcelService _excelService;
         protected APIResponse _response;
+      
+  
         public ExcelController(IExcelService excelService)
         {
 
@@ -67,7 +74,10 @@ namespace DMU_Git.Controllers
         public async Task<IActionResult> UploadFile(IFormFile file, string tableName)
         {
             var mytablername = tableName;
-
+            string errorMessages = string.Empty;
+            string successMessage = null;
+            string tableNames = tableName;
+            
             if (file == null || file.Length == 0)
             {
                 _response.StatusCode = HttpStatusCode.BadRequest;
@@ -86,22 +96,41 @@ namespace DMU_Git.Controllers
                 return BadRequest(_response);
             }
 
+                int? uploadedEntityId = null; // Assuming you obtain the entity ID from the uploaded file or some other source
+                try
+                {
+                    uploadedEntityId = _excelService.GetEntityIdByEntityNamefromui(tableName);
+                    var idfromtemplate = _excelService.GetEntityIdFromTemplate(file);
+                    if(idfromtemplate != null) 
+                    {
+                        var idval = idfromtemplate;
+                        successMessage = "Template is valid";
+                    }
+                    else
+                    {
+                        var idval = idfromtemplate;
+                        successMessage = "Template is not valid";
+                    }
+                }
+            catch (Exception ex)
+            {
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                _response.IsSuccess = false;
+                _response.ErrorMessage.Add("Invalid entity name.");
+                return BadRequest(_response);
+            }
+
+
+
             try
             {
-                // Check if the table exists in the database
-                //if (!TableExists(mytablername))
-                //{
-                //    _response.StatusCode = HttpStatusCode.NotFound;
-                //    _response.IsSuccess = false;
-                //    _response.ErrorMessage.Add($"Table '{mytablername}' does not exist in the database.");
-                //    return NotFound(_response);
-                //}
                 var columnsDTO = _excelService.GetColumnsForEntity(tableName).ToList();
                 var excelData = _excelService.ReadExcelFromFormFile(file);
                 DataTable validRowsDataTable = excelData.Clone(); // Create a DataTable to store valid rows
                 DataTable successdata = validRowsDataTable.Clone(); // Create a DataTable to store valid rows
                 List<string> badRows = new List<string>();
                 List<string> columns = new List<string>();
+
                 using (var excelFileStream = file.OpenReadStream())
                 {
                     var data = _excelService.ReadDataFromExcel(excelFileStream,excelData.Rows.Count);
@@ -125,11 +154,12 @@ namespace DMU_Git.Controllers
                                 _response.StatusCode = HttpStatusCode.BadRequest;
                                 _response.IsSuccess = false;
                                 _response.ErrorMessage.Add("Empty or null value found in column '{col}'");
-
                                 return BadRequest(_response);
                             }
                         }
                     }
+
+                    
                     var errorcount = 0;
                     var successcount = 0;
 
@@ -206,9 +236,9 @@ namespace DMU_Git.Controllers
                         }
                     }
                 }
-                /////store log data
-                var result = await _excelService.Createlog(tableName, badRows,fileName, successdata);
-
+                //store log data
+                 var result = await _excelService.Createlog(tableName, badRows,fileName, successdata,errorMessages,successMessage);
+              
                 // Build the values for the SQL INSERT statement
                 _excelService.InsertDataFromDataTableToPostgreSQL(successdata, tableName, columns);
 
@@ -225,8 +255,12 @@ namespace DMU_Git.Controllers
                 string[] errorParts = ex.Message.Split(':');
                 if (errorParts.Length >= 2)
                 {
+                   
                     string[] errorMessageParts = errorParts[1].Split('\n');
                     string errorMessage = errorMessageParts[0].Trim();
+                    // Log the error message and details to your log table
+                    _excelService.Createlog(tableName, new List<string> { ex.Message }, fileName, null,errorMessage,successMessage);
+
                     var response = new APIResponse
                     {
                         StatusCode = HttpStatusCode.InternalServerError,
@@ -247,40 +281,8 @@ namespace DMU_Git.Controllers
                     return StatusCode((int)HttpStatusCode.InternalServerError, response);
                 }
             }
-        }
-
-        //private bool TableExists(string tableName)
-        //{
-        //    try
-        //    {
-        //        using (var connection =  _context.Database.GetDbConnection())
-        //        {
-        //            connection.Open();
-
-        //            using (var command = connection.CreateCommand())
-        //            {
-        //                command.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = @TableName";
-        //                command.Parameters.Add(new NpgsqlParameter("TableName", NpgsqlDbType.Text) { Value = tableName });
-
-        //                var result = command.ExecuteScalar();
-
-        //                if (result != null && result != DBNull.Value)
-        //                {
-        //                    return Convert.ToInt32(result) > 0;
-        //                }
-        //            }
-
-        //            connection.Close();
-        //        }
-
-        //        return false;
-        //    }
-        //    catch (Exception)
-        //    {
-        //        return false;
-        //    }
-        //}
-
+          
+        } 
 
     }
 }
