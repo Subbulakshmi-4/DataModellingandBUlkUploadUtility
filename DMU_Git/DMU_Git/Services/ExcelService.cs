@@ -278,7 +278,6 @@ public class ExcelService : IExcelService
         }
     }
 
-
     public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream,int rowcount)
     {
 
@@ -323,8 +322,6 @@ public class ExcelService : IExcelService
         }
 
     }
-
-
 
     public bool IsValidDataType(string data, string expectedDataType)
     {
@@ -432,7 +429,7 @@ public class ExcelService : IExcelService
         return columnsDTO;
     }
 
-    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, DataTable successdata)
+    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, DataTable successdata, string errorMessage, string successMessage)
     {
         var storeentity = await _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
         LogParent logParent = new LogParent();
@@ -441,10 +438,17 @@ public class ExcelService : IExcelService
         logParent.Entity_Id = storeentity.Id;
         logParent.Timestamp = DateTime.UtcNow; ;
         logParent.FailCount = filedata.Count;
-        logParent.PassCount = successdata.Rows.Count;
+        if (successdata != null)
+        {
+            logParent.PassCount = successdata.Rows.Count;
+        }
+        else
+        {
+            logParent.PassCount = 0; // or handle accordingly
+        }
+
+       // logParent.PassCount = successdata.Rows.Count;
         logParent.RecordCount = logParent.FailCount + logParent.PassCount;
-
-
 
         // Insert the LogParent record
         _context.logParents.Add(logParent);
@@ -458,11 +462,7 @@ public class ExcelService : IExcelService
             Console.WriteLine("Error: " + ex.Message);
         }
 
-
-
         LogChild logChild = new LogChild();
-
-
 
         if (filedata.Count() > 0)
         {
@@ -471,8 +471,10 @@ public class ExcelService : IExcelService
             string result = string.Join(delimiter, filedata);
             logChild.ParentID = parentId; // Set the ParentId
             logChild.Filedata = result; // Set the values as needed
-            logChild.ErrorMessage = "Datatype validation failed"; // Set the values as needed
-                                                                  // Insert the LogChild record
+            logChild.ErrorMessage = !string.IsNullOrEmpty(successMessage) ? $"{errorMessage}. {successMessage}" : errorMessage;
+
+            //"Datatype validation failed"; // Set the values as needed
+            // Insert the LogChild record
             await _context.logChilds.AddAsync(logChild);
             try
             {
@@ -485,8 +487,6 @@ public class ExcelService : IExcelService
             }
         }
 
-
-
         LogDTO logDTO = new LogDTO()
         {
             LogParentDTOs = logParent,
@@ -497,63 +497,7 @@ public class ExcelService : IExcelService
         };
         return logDTO;
     }
-
-    //public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, DataTable successdata)
-    //{
-    //    var storeentity = await _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
-    //    LogParent logParent = new LogParent();
-    //    logParent.FileName = fileName;
-    //    logParent.User_Id = 1;
-    //    logParent.Entity_Id = storeentity.Id;
-    //    logParent.Timestamp = DateTime.UtcNow; ;
-    //    logParent.FailCount = filedata.Count;
-    //    logParent.PassCount = successdata.Rows.Count;
-    //    logParent.RecordCount = logParent.FailCount + logParent.PassCount;
-
-    //    // Insert the LogParent record
-    //    _context.logParents.Add(logParent);
-    //    try
-    //    {
-    //        await _context.SaveChangesAsync();
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        // Log or handle the exception
-    //        Console.WriteLine("Error: " + ex.Message);
-    //    }
-
-
-    //    // Now, you can access the generated ParentId
-    //    int parentId = logParent.ID; // Adjust this based on your actual property name
-    //    string delimiter = ";"; // Specify the delimiter you want
-    //    string result = string.Join(delimiter, filedata);
-    //    LogChild logChild = new LogChild();
-    //    logChild.ParentID = parentId; // Set the ParentId
-    //    logChild.Filedata = result; // Set the values as needed
-    //    logChild.ErrorMessage = "Datatype validation failed"; // Set the values as needed
-    //    // Insert the LogChild record
-    //    await _context.logChilds.AddAsync(logChild);
-    //    try
-    //    {
-    //        await _context.SaveChangesAsync();
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        // Log or handle the exception
-    //        Console.WriteLine("Error: " + ex.Message);
-    //    }
-
-    //    LogDTO logDTO = new LogDTO()
-    //    {
-    //        LogParentDTOs = logParent,
-    //        ChildrenDTOs = new List<LogChild>()
-    //    {
-    //        logChild
-    //    }
-    //    };
-    //    return logDTO;
-    //}
-
+    
     public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns)
     {
 
@@ -595,11 +539,13 @@ public class ExcelService : IExcelService
         {
             connection.Open();
 
+
             foreach (var data2 in convertedDataList)
             {
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
                     cmd.Connection = connection;
+                   
 
                     // Define the case-sensitive table name where you want to insert the data
                     // Build the INSERT statement
@@ -616,6 +562,57 @@ public class ExcelService : IExcelService
         }
 
     }
+
+
+    public int GetEntityIdByEntityNamefromui(string entityName)
+    {
+        // Assuming you have a list of EntityListMetadataModel instances
+        List<EntityListMetadataModel> entityListMetadataModels = GetEntityListMetadataModelforlist(); // Implement this method to fetch your metadata models
+
+        // Use LINQ to find the entity Id
+        int entityId = entityListMetadataModels
+            .Where(model => model.EntityName == entityName)
+            .Select(model => model.Id)
+            .FirstOrDefault();
+
+        if (entityId != 0) // Check if a valid entity Id was found
+        {
+            return entityId;
+        }
+        else
+        {
+            // Handle the case where the entity name is not found
+            throw new Exception("Entity not found");
+        }
+    }
+
+    public List<EntityListMetadataModel> GetEntityListMetadataModelforlist()
+    {
+        {
+            // Assuming YourDbContext is the Entity Framework DbContext for your database
+            List<EntityListMetadataModel> entityListMetadataModels = _context.EntityListMetadataModels.ToList();
+            return entityListMetadataModels;
+        }
+    }
+
+    public int? GetEntityIdFromTemplate(IFormFile file)
+    {
+
+        using (var package = new ExcelPackage(file.OpenReadStream()))
+        {
+            ExcelWorksheet worksheet = package.Workbook.Worksheets[0]; // Assuming entity ID is in the first sheet
+            int entityId;
+
+            if (int.TryParse(worksheet.Cells[1, 1].Text, out entityId))
+            {
+                return entityId;
+            }
+
+            return null; // Unable to parse the entity ID from the template
+        }
+    }
+
+
 }
 
 
