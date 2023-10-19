@@ -1,8 +1,5 @@
 ﻿using DMU_Git.Data;
-using DMU_Git.Models;
 using DMU_Git.Models.DTO;
-using Microsoft.EntityFrameworkCore;
-using System.Linq;
 
 namespace DMU_Git.Services
 {
@@ -36,7 +33,9 @@ namespace DMU_Git.Services
                     Description = column.Description,
                     IsNullable = column.IsNullable,
                     DefaultValue = column.DefaultValue,
-                    ColumnPrimaryKey = column.ColumnPrimaryKey
+                    ColumnPrimaryKey = column.ColumnPrimaryKey,
+                    True = column.True,
+                    False = column.False
                 }).ToList();
 
             if (columnsDTO.Count == 0)
