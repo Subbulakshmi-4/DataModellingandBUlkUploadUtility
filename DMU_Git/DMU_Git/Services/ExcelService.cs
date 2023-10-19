@@ -1,25 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using DMU_Git.Data;
 using DMU_Git.Models.DTO;
 using DMU_Git.Services.Interface;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using OfficeOpenXml;
-using OfficeOpenXml.Style;
 using System.Data;
-using OfficeOpenXml;
-using OfficeOpenXml.DataValidation;
-using OfficeOpenXml.Style;
 using Spire.Xls;
-using Spire.Xls.Collections;
-using Spire.Xls.Core;
-using Spire.Xls.Core.Spreadsheet;
-using Microsoft.EntityFrameworkCore;
-using System.Data;
-using System.Linq;
-using System.Globalization;
 using DMU_Git.Models;
 
 public class ExcelService : IExcelService
@@ -33,8 +19,6 @@ public class ExcelService : IExcelService
 
     public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
     {
-       
-
         Workbook workbook = new Workbook();
         Worksheet worksheet = workbook.Worksheets[0];
         
@@ -55,6 +39,8 @@ public class ExcelService : IExcelService
         worksheet.Range["F2"].Text = "Blank Not Allowed";
         worksheet.Range["G2"].Text = "Default Value";
         worksheet.Range["H2"].Text = "Unique Value";
+        worksheet.Range["I2"].Text = "True Value";
+        worksheet.Range["J2"].Text = "False Value";
 
         // Populate the first sheet with column details
         for (int i = 0; i < columns.Count; i++)
@@ -68,6 +54,8 @@ public class ExcelService : IExcelService
             worksheet.Range[i + 3, 6].Text = column.IsNullable.ToString();
             worksheet.Range[i + 3, 7].Text = column.DefaultValue.ToString();
             worksheet.Range[i + 3, 8].Text = column.ColumnPrimaryKey.ToString();
+            worksheet.Range[i + 3, 9].Text = column.True.ToString();
+            worksheet.Range[i + 3, 10].Text = column.False.ToString();
             int entityId = GetEntityIdByEntityName(column.entityname);
             worksheet.Range["A1"].Text = entityId.ToString();
         }
@@ -129,12 +117,17 @@ public class ExcelService : IExcelService
 
         for (int col = 1; col <= columnCount; col++)
         {
-
             // Get the data type for the current column
             string dataType = columns[col - 1].Datatype;
 
             int length = columns[col - 1].Length;
+
             bool isPrimaryKey = columns[col - 1].ColumnPrimaryKey;
+
+            string truevalue = columns[col - 1].True;
+            
+            string falsevalue = columns[col - 1].False;
+
             bool notNull = columns[col - 1].IsNullable;
             // Specify the range for data validation
             CellRange range = columnNamesWorksheet.Range[startRow, col, endRow, col];
@@ -184,25 +177,35 @@ public class ExcelService : IExcelService
             }
             else if (dataType.Equals("Date", StringComparison.OrdinalIgnoreCase))
             {
+
+                range.DataValidation.AllowType = CellDataType.Date;
+
+                range.DataValidation.ErrorMessage = "Please input correct date!";
+
+                range.DataValidation.ShowError = true;
+
+                range.DataValidation.ErrorTitle = "Error001";
+
+                range.Style.KnownColor = ExcelColors.Gray25Percent;
+
                 // Date validation
-                validation.CompareOperator = ValidationComparisonOperator.Between;
-                validation.Formula1 = "01/01/1900";  // Adjust the minimum date as needed
-                validation.Formula2 = "12/12/2023";  // Adjust the maximum date as needed
-                validation.AllowType = CellDataType.Date;
-                validation.InputTitle = "Input Data";
-                validation.InputMessage = "Type a date between 01/01/1900 and 12/12/2023 in this cell.";
-                validation.ErrorTitle = "Error001";
+                //validation.CompareOperator = ValidationComparisonOperator.Between;
+                //validation.Formula1 = "01/01/1900";  // Adjust the minimum date as needed
+                //validation.Formula2 = "12/12/2023";  // Adjust the maximum date as needed
+                //validation.AllowType = CellDataType.Date;
+                //validation.InputTitle = "Input Data";
+                //validation.InputMessage = "Type a date between 01/01/1900 and 12/12/2023 in this cell.";
+                //validation.ErrorTitle = "Error001";
             }
             else if (dataType.Equals("boolean", StringComparison.OrdinalIgnoreCase))
             {
                 // Data validation formula for "TRUE" or "FALSE"
-                validation.Values = new string[] { "true", "false" };
+                validation.Values = new string[] { truevalue, falsevalue };
                 validation.ErrorTitle = "Error";
                 validation.InputTitle = "Input Data";
                 validation.ErrorMessage = "Select values from dropdown";
                 validation.InputMessage = "Select values from dropdown";
             }
-
 
             // Add more conditions for other data types as needed
         }
@@ -420,7 +423,9 @@ public class ExcelService : IExcelService
                 Description = column.Description,
                 IsNullable = column.IsNullable,
                 DefaultValue = column.DefaultValue,
-                ColumnPrimaryKey = column.ColumnPrimaryKey
+                ColumnPrimaryKey = column.ColumnPrimaryKey,
+                True = column.True,
+                False = column.False
             }).ToList();
 
         if (columnsDTO.Count == 0)
@@ -559,6 +564,8 @@ public class ExcelService : IExcelService
 
         var columnProperties = GetColumnsForEntity(tableName).ToList();
 
+        var booleancolumns = columnProperties.Where(c => c.Datatype.ToLower() == "boolean").ToList();
+
         List<Dictionary<string, string>> convertedDataList = new List<Dictionary<string, string>>();
 
         foreach (DataRow row in data.Rows)
@@ -597,6 +604,23 @@ public class ExcelService : IExcelService
 
             foreach (var data2 in convertedDataList)
             {
+                foreach (var boolvalue in booleancolumns)
+                {
+                    if (data2.ContainsKey(boolvalue.EntityColumnName))
+                    {
+                        // Update the value for the specific key
+                        var value = data2[boolvalue.EntityColumnName];
+
+                        if (value.ToLower() == boolvalue.True.ToLower())
+                        {
+                            data2[boolvalue.EntityColumnName] = "1";
+                        }
+                        else
+                        {
+                            data2[boolvalue.EntityColumnName] = "0";
+                        }
+                    }
+                }
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
                     cmd.Connection = connection;
