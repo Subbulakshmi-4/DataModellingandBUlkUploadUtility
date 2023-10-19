@@ -21,14 +21,19 @@ using System.Data;
 using System.Linq;
 using System.Globalization;
 using DMU_Git.Models;
+using Dapper;
+using System.Text;
+using System.Net;
 
 public class ExcelService : IExcelService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IDbConnection _dbConnection;
 
-    public ExcelService(ApplicationDbContext context)
+    public ExcelService(ApplicationDbContext context, IDbConnection dbConnection)
     {
         _context = context;
+        _dbConnection = dbConnection;
     }
 
     public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
@@ -429,25 +434,16 @@ public class ExcelService : IExcelService
         return columnsDTO;
     }
 
-    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, DataTable successdata, string errorMessage, string successMessage)
+    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, int successdata, string errorMessage, string successMessage)
     {
         var storeentity = await _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
         LogParent logParent = new LogParent();
         logParent.FileName = fileName;
         logParent.User_Id = 1;
         logParent.Entity_Id = storeentity.Id;
-        logParent.Timestamp = DateTime.UtcNow; ;
-        logParent.FailCount = filedata.Count;
-        if (successdata != null)
-        {
-            logParent.PassCount = successdata.Rows.Count;
-        }
-        else
-        {
-            logParent.PassCount = 0; // or handle accordingly
-        }
-
-       // logParent.PassCount = successdata.Rows.Count;
+        logParent.Timestamp = DateTime.UtcNow;
+        logParent.FailCount = filedata.Count - 1;
+        logParent.PassCount = successdata;
         logParent.RecordCount = logParent.FailCount + logParent.PassCount;
 
         // Insert the LogParent record
@@ -464,41 +460,44 @@ public class ExcelService : IExcelService
 
         LogChild logChild = new LogChild();
 
+
+        int parentId = logParent.ID;
+        logChild.ParentID = parentId; // Set the ParentId
         if (filedata.Count() > 0)
         {
-            int parentId = logParent.ID; // Adjust this based on your actual property name
             string delimiter = ";"; // Specify the delimiter you want
             string result = string.Join(delimiter, filedata);
-            logChild.ParentID = parentId; // Set the ParentId
             logChild.Filedata = result; // Set the values as needed
-            logChild.ErrorMessage = !string.IsNullOrEmpty(successMessage) ? $"{errorMessage}. {successMessage}" : errorMessage;
-
-            //"Datatype validation failed"; // Set the values as needed
-            // Insert the LogChild record
-            await _context.logChilds.AddAsync(logChild);
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (Exception ex)
-            {
-                // Log or handle the exception
-                Console.WriteLine("Error: " + ex.Message);
-            }
+            logChild.ErrorMessage = errorMessage;
+        }
+        else
+        {
+            logChild.Filedata = "";
+            logChild.ErrorMessage = successMessage;
         }
 
+
+        // Insert the LogChild record
+        await _context.logChilds.AddAsync(logChild);
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log or handle the exception
+            Console.WriteLine("Error: " + ex.Message);
+        }
+       
         LogDTO logDTO = new LogDTO()
         {
             LogParentDTOs = logParent,
-            ChildrenDTOs = new List<LogChild>()
-        {
-            logChild
-        }
+            ChildrenDTOs = _context.logChilds.Where(x => x.ParentID == logParent.ID).ToList()
         };
         return logDTO;
     }
-    
-    public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns)
+
+    public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns, IFormFile file)
     {
 
         var columnProperties = GetColumnsForEntity(tableName).ToList();
@@ -534,31 +533,61 @@ public class ExcelService : IExcelService
         IConfigurationRoot configuration = configurationBuilder.Build();
 
         string connectionString = configuration.GetConnectionString("DefaultConnection");
-
+        var errorDataList = convertedDataList;
         using (NpgsqlConnection connection = new NpgsqlConnection(connectionString))
         {
             connection.Open();
-
-
-            foreach (var data2 in convertedDataList)
+            List<Dictionary<string, string>> dataToRemove = new List<Dictionary<string, string>>();
+            try
             {
-                using (NpgsqlCommand cmd = new NpgsqlCommand())
+
+                foreach (var data2 in convertedDataList)
                 {
-                    cmd.Connection = connection;
-                   
+                    using (NpgsqlCommand cmd = new NpgsqlCommand())
+                    {
+                        cmd.Connection = connection;
+                        // Build the INSERT statement
+                        string columns2 = string.Join(", ", data2.Keys.Select(k => $"\"{k}\"")); // Use double quotes for case-sensitive column names
+                        string values = string.Join(", ", data2.Values.Select(v => $"'{v}'")); // Wrap values in single quotes for strings
+                        string query = $"INSERT INTO \"{tableName}\" ({columns2}) VALUES ({values})"; // Use double quotes for case-sensitive table name
 
-                    // Define the case-sensitive table name where you want to insert the data
-                    // Build the INSERT statement
-                    string columns2 = string.Join(", ", data2.Keys.Select(k => $"\"{k}\"")); // Use double quotes for case-sensitive column names
-                    string values = string.Join(", ", data2.Values.Select(v => $"'{v}'")); // Wrap values in single quotes for strings
-                    string query = $"INSERT INTO \"{tableName}\" ({columns2}) VALUES ({values})"; // Use double quotes for case-sensitive table name
-
-                    cmd.CommandText = query;
-                    cmd.ExecuteNonQuery();
+                        cmd.CommandText = query;
+                        cmd.ExecuteNonQuery();
+                        dataToRemove.Add(data2);
+                    }
                 }
+                connection.Close();
+            }
+            catch (Exception ex)
+            {
+                var successdata = convertedDataList.Count - errorDataList.Count;
+                string errorMessages = "Server error";
+                string successMessage = " ";
+                string fileName = file.FileName;
+                List<string> badRows = new List<string>();
+                foreach (var dataToRemoveItem in dataToRemove)
+                {
+                    errorDataList.Remove(dataToRemoveItem);
+                }
+                foreach (var dict in errorDataList)
+                {
+                    StringBuilder sb = new StringBuilder();
+                    foreach (var value in dict.Values)
+                    {
+                        if (sb.Length > 0)
+                            sb.Append(", ");
+                        sb.Append(value);
+                    }
+                    badRows.Add(sb.ToString());
+                }
+                string comma_separated_string = string.Join(",", columns.ToArray());
+                badRows.Insert(0, comma_separated_string);
+                var result = Createlog(tableName, badRows, fileName, successdata, errorMessages, successMessage);
+
             }
 
-            connection.Close();
+
+
         }
 
     }
@@ -589,7 +618,7 @@ public class ExcelService : IExcelService
     public List<EntityListMetadataModel> GetEntityListMetadataModelforlist()
     {
         {
-            // Assuming YourDbContext is the Entity Framework DbContext for your database
+            
             List<EntityListMetadataModel> entityListMetadataModels = _context.EntityListMetadataModels.ToList();
             return entityListMetadataModels;
         }
@@ -609,6 +638,62 @@ public class ExcelService : IExcelService
             }
 
             return null; // Unable to parse the entity ID from the template
+        }
+    }
+
+    public string GetPrimaryKeyColumnForEntity(string entityName)
+    {
+        var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
+
+        if (entity == null)
+        {
+            // Entity not found, return null or throw an exception
+            return null;
+        }
+
+        var primaryKeyColumn = _context.EntityColumnListMetadataModels
+            .Where(column => column.EntityId == entity.Id && column.ColumnPrimaryKey)
+            .Select(column => column.EntityColumnName)
+            .FirstOrDefault();
+
+        return primaryKeyColumn;
+    }
+
+    public async Task<List<int>> GetAllIdsFromDynamicTable(string tableName)
+    {
+        string primaryKeyColumn = GetPrimaryKeyColumnForEntity(tableName);
+        //if (string.IsNullOrEmpty(primaryKeyColumn))
+        //{
+
+        //    return new List<int>();
+        //}
+        try
+        {
+            // Use Dapper to execute a parameterized query to fetch IDs
+            string query = $"SELECT \"{primaryKeyColumn}\" FROM public.\"{tableName}\";";
+            var ids = await _dbConnection.QueryAsync<int>(query);
+
+            return ids.ToList();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error fetching IDs from the specified table.", ex);
+        }
+    }
+
+    public bool TableExists(string tableName)
+    {
+        try
+        {
+            // Use Dapper to execute a parameterized query to check if the table exists
+            string query = "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = @TableName)";
+            bool tableExists = _dbConnection.QueryFirstOrDefault<bool>(query, new { TableName = tableName });
+
+            return tableExists;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error checking table existence in the specified database.", ex);
         }
     }
 
