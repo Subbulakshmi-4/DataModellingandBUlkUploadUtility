@@ -7,6 +7,8 @@ using OfficeOpenXml;
 using System.Data;
 using Spire.Xls;
 using DMU_Git.Models;
+using System.Windows.Forms;
+using Spire.Xls.Core;
 
 public class ExcelService : IExcelService
 {
@@ -111,9 +113,21 @@ public class ExcelService : IExcelService
 
     private void AddDataValidation(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns)
     {
+
         int startRow = 2; // The first row where you want validation
         int endRow = 100000;  // Adjust the last row as needed
         int columnCount = columnNamesWorksheet.Columns.Length;
+
+        char letter = 'A';
+        char lastletter = 'A';
+
+        // Protect the worksheet with a password
+        columnNamesWorksheet.Protect("password");
+
+        for (int i = 2; i <= columnCount; i++)
+        {
+            lastletter++;
+        }
 
         for (int col = 1; col <= columnCount; col++)
         {
@@ -125,13 +139,17 @@ public class ExcelService : IExcelService
             bool isPrimaryKey = columns[col - 1].ColumnPrimaryKey;
 
             string truevalue = columns[col - 1].True;
-            
+
             string falsevalue = columns[col - 1].False;
 
             bool notNull = columns[col - 1].IsNullable;
             // Specify the range for data validation
             CellRange range = columnNamesWorksheet.Range[startRow, col, endRow, col];
             Validation validation = range.DataValidation;
+
+            
+            //Protect the worksheet with password
+            columnNamesWorksheet.Protect("123456", SheetProtectionType.All);
 
             if (dataType.Equals("string", StringComparison.OrdinalIgnoreCase))
             {
@@ -177,25 +195,15 @@ public class ExcelService : IExcelService
             }
             else if (dataType.Equals("Date", StringComparison.OrdinalIgnoreCase))
             {
-
-                range.DataValidation.AllowType = CellDataType.Date;
-
-                range.DataValidation.ErrorMessage = "Please input correct date!";
-
-                range.DataValidation.ShowError = true;
-
-                range.DataValidation.ErrorTitle = "Error001";
-
-                range.Style.KnownColor = ExcelColors.Gray25Percent;
-
+               
                 // Date validation
-                //validation.CompareOperator = ValidationComparisonOperator.Between;
-                //validation.Formula1 = "01/01/1900";  // Adjust the minimum date as needed
-                //validation.Formula2 = "12/12/2023";  // Adjust the maximum date as needed
-                //validation.AllowType = CellDataType.Date;
-                //validation.InputTitle = "Input Data";
-                //validation.InputMessage = "Type a date between 01/01/1900 and 12/12/2023 in this cell.";
-                //validation.ErrorTitle = "Error001";
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.Formula1 = "01/01/1900";  // Adjust the minimum date as needed
+                validation.Formula2 = "12/12/2023";  // Adjust the maximum date as needed
+                validation.AllowType = CellDataType.Date;
+                validation.InputTitle = "Input Data";
+                validation.InputMessage = "Type a date between 01/01/1900 and 12/12/2023 in this cell.";
+                validation.ErrorTitle = "Error001";
             }
             else if (dataType.Equals("boolean", StringComparison.OrdinalIgnoreCase))
             {
@@ -206,11 +214,17 @@ public class ExcelService : IExcelService
                 validation.ErrorMessage = "Select values from dropdown";
                 validation.InputMessage = "Select values from dropdown";
             }
-
+                      
             // Add more conditions for other data types as needed
         }
+        for (int i = 2; i <= 65537; i++)
+        {
+            string startindex = letter + i.ToString();
+            string endindex = lastletter + i.ToString();
+            CellRange lockrange = columnNamesWorksheet.Range[startindex + ":" + endindex];
+            lockrange.Style.Locked = false;
+        }
     }
-
     private int GetEntityIdByEntityName(string entityName)
     {
         // Assuming you have a list of EntityListMetadataModel instances
@@ -250,30 +264,36 @@ public class ExcelService : IExcelService
             {
                 DataTable dataTable = new DataTable();
 
-
-
                 ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
 
-
-
-                foreach (var firstRowCell in worksheet.Cells[1, 1, 1, worksheet.Dimension.End.Column])
+                for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
                 {
-                    dataTable.Columns.Add(firstRowCell.Text);
+                    // Check the first cell in each column
+                    var firstCell = worksheet.Cells[1, col];
+                    if (string.IsNullOrWhiteSpace(firstCell.Text))
+                    {
+                        // Skip this column
+                        continue;
+                    }
+
+                    dataTable.Columns.Add(firstCell.Text);
                 }
-
-
 
                 for (int rowNumber = 2; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
                 {
-                    var row = worksheet.Cells[rowNumber, 1, rowNumber, worksheet.Dimension.End.Column];
                     var dataRow = dataTable.NewRow();
+                    int colIndex = 0;
                     for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
                     {
-                        dataRow[col - 1] = row[rowNumber, col].Text;
+                        // Check if this column should be included
+                        if (dataTable.Columns.Contains(worksheet.Cells[1, col].Text))
+                        {
+                            dataRow[colIndex] = worksheet.Cells[rowNumber, col].Text;
+                            colIndex++;
+                        }
                     }
                     dataTable.Rows.Add(dataRow);
                 }
-
 
                 dataTable = dataTable.AsEnumerable().Where(row => !row.ItemArray.All(field => field is DBNull || string.IsNullOrWhiteSpace(field.ToString()))).CopyToDataTable();
                 return dataTable;
@@ -281,33 +301,27 @@ public class ExcelService : IExcelService
         }
     }
 
-    public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream,int rowcount)
+    public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream, int rowCount)
     {
-
-
-
         using (var package = new ExcelPackage(excelFileStream))
         {
             ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
-            // handle sheet out range eception
-
-
-            int rowCount = rowcount+1;
-
+            rowCount = rowCount + 1;
             int colCount = worksheet.Dimension.Columns;
-
 
             var data = new List<Dictionary<string, string>>();
 
-            // Extract column names
+            // Extract column names and identify which columns to skip
             var columnNames = new List<string>();
+            var skipColumns = new List<bool>();
             for (int col = 1; col <= colCount; col++)
             {
                 var columnName = worksheet.Cells[1, col].Value?.ToString();
                 columnNames.Add(columnName);
+
+                // Check if the first cell in this column is empty or null
+                skipColumns.Add(string.IsNullOrWhiteSpace(columnName));
             }
-
-
 
             // Read data rows
             for (int row = 2; row <= rowCount; row++)
@@ -315,15 +329,18 @@ public class ExcelService : IExcelService
                 var rowData = new Dictionary<string, string>();
                 for (int col = 1; col <= colCount; col++)
                 {
-                    var columnName = columnNames[col - 1];
-                    var cellValue = worksheet.Cells[row, col].Value?.ToString();
-                    rowData[columnName] = cellValue;
+                    // If the column should be skipped, don't include it in the rowData
+                    if (!skipColumns[col - 1])
+                    {
+                        var columnName = columnNames[col - 1];
+                        var cellValue = worksheet.Cells[row, col].Value?.ToString();
+                        rowData[columnName] = cellValue;
+                    }
                 }
                 data.Add(rowData);
             }
             return data;
         }
-
     }
 
     public bool IsValidDataType(string data, string expectedDataType)
