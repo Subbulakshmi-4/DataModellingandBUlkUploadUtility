@@ -135,7 +135,7 @@ namespace DMU_Git.Controllers
                     }
                 }
 
-                var ids = await _excelService.GetAllIdsFromDynamicTable(tableName);//primary key id pass
+                
 
                 using (var excelFileStream = file.OpenReadStream())
                 {
@@ -184,12 +184,6 @@ namespace DMU_Git.Controllers
                         {
                             string cellData = excelData.Rows[row][col].ToString();
                             EntityColumnDTO columnDTO = columnsDTO[col];
-                            if (!_excelService.IsValidDataType(cellData, columnDTO.Datatype))
-                            {
-                                // Set the flag to indicate validation failure for this row
-                                rowValidationFailed = true;
-                                break; // Exit the loop as soon as a validation failure is encountered
-                            }
                         }
                         // If row validation succeeded, add the entire row to the validRowsDataTable
                         if (!rowValidationFailed)
@@ -217,6 +211,8 @@ namespace DMU_Git.Controllers
 
                     HashSet<string> seenValues = new HashSet<string>(); // To store values in primary key columns for duplicate checking
 
+                    var ids = await _excelService.GetAllIdsFromDynamicTable(tableName);//primary key id pass
+
                     for (int row = 0; row < validRowsDataTable.Rows.Count; row++)
                     {
                         bool rowValidationFailed = false; // Flag to track row validation
@@ -226,11 +222,17 @@ namespace DMU_Git.Controllers
                             string cellData = validRowsDataTable.Rows[row][col].ToString();
                             if (ids.Contains(int.Parse(cellData)))
                             {
+                             
+                                    // Set the flag to indicate validation failure for this row
+                                    rowValidationFailed = true;
+                                    break; // Exit the loop as soon as a validation failure is encountered
+                            }
+                            if (seenValues.Contains(cellData))
+                            {
                                 // Set the flag to indicate validation failure for this row
                                 rowValidationFailed = true;
                                 break; // Exit the loop as soon as a validation failure is encountered
                             }
-
                             // Store the value for duplicate checking
                             seenValues.Add(cellData);
                         }
@@ -262,8 +264,8 @@ namespace DMU_Git.Controllers
                 if (successdata.Rows.Count == 0)
                 {
                     _response.Result = result;
-                    _response.StatusCode = HttpStatusCode.BadRequest;
-                    _response.IsSuccess = false;
+                    _response.StatusCode = HttpStatusCode.Created;
+                    _response.IsSuccess = true;
                     _response.ErrorMessage.Add("All Records are incorrect");
                     return Ok(_response);
                 }
@@ -278,8 +280,8 @@ namespace DMU_Git.Controllers
                 else
                 {
                     _response.Result = result;
-                    _response.StatusCode = HttpStatusCode.BadRequest;
-                    _response.IsSuccess = false;
+                    _response.StatusCode = HttpStatusCode.Created;
+                    _response.IsSuccess = true;
                     _response.ErrorMessage.Add("Passcount records are successfully stored failcount records are incorrect ");
                     return Ok(_response);
                 }
