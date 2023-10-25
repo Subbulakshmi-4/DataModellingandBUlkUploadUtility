@@ -10,8 +10,8 @@ using DMU_Git.Models;
 using Dapper;
 using System.Text;
 using System.Net;
-using System.Windows.Forms;
 using Spire.Xls.Core;
+
 
 public class ExcelService : IExcelService
 {
@@ -23,7 +23,7 @@ public class ExcelService : IExcelService
         _context = context;
         _dbConnection = dbConnection;
     }
-
+        
     public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
     {
         Workbook workbook = new Workbook();
@@ -46,20 +46,34 @@ public class ExcelService : IExcelService
         worksheet.Range["F2"].Text = "Blank Not Allowed";
         worksheet.Range["G2"].Text = "Default Value";
         worksheet.Range["H2"].Text = "Unique Value";
-        worksheet.Range["I2"].Text = "True Value";
-        worksheet.Range["J2"].Text = "False Value";
+        worksheet.Range["I2"].Text = "Option1";
+        worksheet.Range["J2"].Text = "Option2";
 
         // Populate the first sheet with column details
         for (int i = 0; i < columns.Count; i++)
         {
             var column = columns[i];
-            worksheet.Range[i + 3, 1].Value = column.Id.ToString();
+            worksheet.Range[i + 3, 1].Value = (i+1).ToString();
             worksheet.Range[i + 3, 2].Text = column.EntityColumnName;
             worksheet.Range[i + 3, 3].Text = column.Datatype;
-            worksheet.Range[i + 3, 4].Text = column.Length.ToString();
+            worksheet.Range[i + 3, 4].Text = string.IsNullOrEmpty(column.Length.ToString()) || column.Length.ToString() == "0".ToString() ? string.Empty : column.Length.ToString();
             worksheet.Range[i + 3, 5].Text = column.Description;
             worksheet.Range[i + 3, 6].Text = column.IsNullable.ToString();
-            worksheet.Range[i + 3, 7].Text = column.DefaultValue.ToString();
+            if (column.Datatype.ToLower() == "boolean")
+            {
+                if (column.DefaultValue.ToLower() == "true")
+                {
+                    worksheet.Range[i + 3, 7].Text = column.True;
+                }
+                else if (column.DefaultValue.ToLower() == "false")
+                {
+                    worksheet.Range[i + 3, 7].Text = column.False;
+                }
+            }
+            else
+            {
+                worksheet.Range[i + 3, 7].Text = column.DefaultValue.ToString();
+            }
             worksheet.Range[i + 3, 8].Text = column.ColumnPrimaryKey.ToString();
             worksheet.Range[i + 3, 9].Text = column.True.ToString();
             worksheet.Range[i + 3, 10].Text = column.False.ToString();
@@ -200,7 +214,6 @@ public class ExcelService : IExcelService
             }
             else if (dataType.Equals("Date", StringComparison.OrdinalIgnoreCase))
             {
-               
                 // Date validation
                 validation.CompareOperator = ValidationComparisonOperator.Between;
                 validation.Formula1 = "01/01/1900";  // Adjust the minimum date as needed
@@ -208,7 +221,8 @@ public class ExcelService : IExcelService
                 validation.AllowType = CellDataType.Date;
                 validation.InputTitle = "Input Data";
                 validation.InputMessage = "Type a date between 01/01/1900 and 12/12/2023 in this cell.";
-                validation.ErrorTitle = "Error001";
+                validation.ErrorTitle = "Error";
+                validation.ErrorMessage = "Enter a valid date";
             }
             else if (dataType.Equals("boolean", StringComparison.OrdinalIgnoreCase))
             {
@@ -219,7 +233,54 @@ public class ExcelService : IExcelService
                 validation.ErrorMessage = "Select values from dropdown";
                 validation.InputMessage = "Select values from dropdown";
             }
-                      
+            else if (dataType.Equals("timestamp", StringComparison.OrdinalIgnoreCase))
+            {
+                // Date and time validation
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.Formula1 = "01/01/1900";
+                validation.Formula2 = "12/31/9999"; // Adjust the range as needed
+                validation.AllowType = CellDataType.Date;
+                validation.InputTitle = "Input Data";
+                validation.InputMessage = "Type a date and time in the specified format.";
+                validation.ErrorTitle = "Error";
+                validation.ErrorMessage = "Enter a valid date and time.";
+            }
+            else if (dataType.Equals("char", StringComparison.OrdinalIgnoreCase))
+            {
+                // Character validation for a single character
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.Formula1 = "1";
+                validation.Formula2 = "1";
+                validation.AllowType = CellDataType.TextLength;
+                validation.InputTitle = "Input Data";
+                validation.InputMessage = "Type a single character.";
+                validation.ErrorTitle = "Error";
+                validation.ErrorMessage = "Enter a valid character.";
+            }
+            else if (dataType.Equals("bytea", StringComparison.OrdinalIgnoreCase))
+            {
+                // Byte validation
+                // Modify the validation code for bytea data
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.Formula1 = "1"; // Set a minimum length of 1
+                validation.Formula2 = "1000000"; // Set a maximum length as needed
+                validation.AllowType = CellDataType.TextLength;
+                validation.InputTitle = "Input Data";
+                validation.InputMessage = "Type a byte array with a length between 1 and 1000000 characters.";
+                validation.ErrorTitle = "Error";
+                validation.ErrorMessage = "Invalid byte array length";
+
+                // Include byte validation
+                bool isValidByteA = IsValidByteA(columns[col - 1].DefaultValue, 1, 1000000); // Modify the length limits as needed
+
+                if (!isValidByteA)
+                {
+                    // Data does not meet byte validation criteria
+                    validation.ErrorMessage = "Invalid byte array format or length.";
+                }
+            }
+
+
             // Add more conditions for other data types as needed
         }
         for (int i = 2; i <= 65537; i++)
@@ -373,7 +434,24 @@ public class ExcelService : IExcelService
                 return false; // Unknown data type; you can adjust this logic accordingly.
         }
     }
+    public bool IsValidByteA(string data, int minLength, int maxLength)
+    {
+        // Check if the input is a valid hexadecimal string
+        if (!IsHexString(data))
+        {
+            return false;
+        }
 
+        // Check if the length is within acceptable limits
+        if (data.Length < minLength || data.Length > maxLength)
+        {
+            return false;
+        }
+
+        // Add more specific checks if needed
+
+        return true;
+    }
     public bool IsValidByteA(string data)
     {
         // Assuming that the data is represented as a hexadecimal string,
