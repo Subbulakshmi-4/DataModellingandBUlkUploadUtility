@@ -12,6 +12,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using DMU_Git.Services;
 using System.Data;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using OfficeOpenXml;
+using System.Diagnostics;
+using System;
+using System.IO;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace DMU_Git.Controllers
 {
@@ -24,11 +29,14 @@ namespace DMU_Git.Controllers
 
         private readonly IExcelService _excelService;
         protected APIResponse _response;
-        public ExcelController(IExcelService excelService)
+        private readonly ApplicationDbContext _context;
+
+        public ExcelController(IExcelService excelService, ApplicationDbContext context)
         {
 
             _excelService = excelService;
             _response = new();
+            _context = context;
         }
 
         [HttpPost("generate")]
@@ -44,7 +52,7 @@ namespace DMU_Git.Controllers
                 var fileContentResult = new FileContentResult(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 {
                     FileDownloadName = "columns.xlsx"
-                };   
+                };
 
                 return fileContentResult;
             }
@@ -67,7 +75,16 @@ namespace DMU_Git.Controllers
         public async Task<IActionResult> UploadFile(IFormFile file, string tableName)
         {
             var mytablername = tableName;
-
+            string errorMessages = string.Empty;
+            string successMessage = null;
+            string tableNames = tableName;
+            var columnsDTO = _excelService.GetColumnsForEntity(tableName).ToList();
+            var excelData = _excelService.ReadExcelFromFormFile(file);
+            DataTable validRowsDataTable = excelData.Clone(); // Create a DataTable to store valid rows
+            DataTable successdata = validRowsDataTable.Clone(); // Create a DataTable to store valid rows
+            List<string> badRows = new List<string>();
+            List<string> columns = new List<string>();
+            string comma_separated_string = null;
             if (file == null || file.Length == 0)
             {
                 _response.StatusCode = HttpStatusCode.BadRequest;
@@ -86,25 +103,43 @@ namespace DMU_Git.Controllers
                 return BadRequest(_response);
             }
 
+            int? uploadedEntityId = null;
+            uploadedEntityId = _excelService.GetEntityIdByEntityNamefromui(tableName);
+            var idfromtemplate = _excelService.GetEntityIdFromTemplate(file);
+            if (idfromtemplate == null)
+            {
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                _response.IsSuccess = false;
+                _response.ErrorMessage.Add("Template is not valid");
+                return BadRequest(_response);
+            }
+
+
+            bool checkingtableName = _excelService.TableExists(tableName);
+            if (checkingtableName == false)
+            {
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                _response.IsSuccess = false;
+                _response.ErrorMessage.Add("Table does not exist");
+                return BadRequest(_response);
+            }
+
             try
             {
-                // Check if the table exists in the database
-                //if (!TableExists(mytablername))
-                //{
-                //    _response.StatusCode = HttpStatusCode.NotFound;
-                //    _response.IsSuccess = false;
-                //    _response.ErrorMessage.Add($"Table '{mytablername}' does not exist in the database.");
-                //    return NotFound(_response);
-                //}
-                var columnsDTO = _excelService.GetColumnsForEntity(tableName).ToList();
-                var excelData = _excelService.ReadExcelFromFormFile(file);
-                DataTable validRowsDataTable = excelData.Clone(); // Create a DataTable to store valid rows
-                DataTable successdata = validRowsDataTable.Clone(); // Create a DataTable to store valid rows
-                List<string> badRows = new List<string>();
-                List<string> columns = new List<string>();
+                string primaryKey = null;
+                foreach (var val in columnsDTO)
+                {
+                    if (val.ColumnPrimaryKey == true)
+                    {
+                        primaryKey = val.EntityColumnName;
+                    }
+                }
+
+                
+
                 using (var excelFileStream = file.OpenReadStream())
                 {
-                    var data = _excelService.ReadDataFromExcel(excelFileStream,excelData.Rows.Count);
+                    var data = _excelService.ReadDataFromExcel(excelFileStream, excelData.Rows.Count);
 
                     if (data == null || data.Count == 0)
                     {
@@ -125,18 +160,20 @@ namespace DMU_Git.Controllers
                                 _response.StatusCode = HttpStatusCode.BadRequest;
                                 _response.IsSuccess = false;
                                 _response.ErrorMessage.Add("Empty or null value found in column '{col}'");
-
                                 return BadRequest(_response);
                             }
                         }
                     }
+
+
                     var errorcount = 0;
                     var successcount = 0;
 
-                    // Get the columns from the first row (assuming all rows have the same structure)
+                    // Get the columns from the first row
                     var columnnames = data.First().Keys.ToList();
 
                     columns = columnnames.ToList();
+                    comma_separated_string = string.Join(",", columns.ToArray());
 
                     //Data Type Validation
                     for (int row = 0; row < excelData.Rows.Count; row++)
@@ -147,12 +184,6 @@ namespace DMU_Git.Controllers
                         {
                             string cellData = excelData.Rows[row][col].ToString();
                             EntityColumnDTO columnDTO = columnsDTO[col];
-                            if (!_excelService.IsValidDataType(cellData, columnDTO.Datatype))
-                            {
-                                // Set the flag to indicate validation failure for this row
-                                rowValidationFailed = true;
-                                break; // Exit the loop as soon as a validation failure is encountered
-                            }
                         }
                         // If row validation succeeded, add the entire row to the validRowsDataTable
                         if (!rowValidationFailed)
@@ -177,46 +208,84 @@ namespace DMU_Git.Controllers
                             primaryKeyColumns.Add(col);
                         }
                     }
+
                     HashSet<string> seenValues = new HashSet<string>(); // To store values in primary key columns for duplicate checking
+
+                    var ids = await _excelService.GetAllIdsFromDynamicTable(tableName);//primary key id pass
+
                     for (int row = 0; row < validRowsDataTable.Rows.Count; row++)
                     {
                         bool rowValidationFailed = false; // Flag to track row validation
+
                         foreach (var col in primaryKeyColumns)
                         {
                             string cellData = validRowsDataTable.Rows[row][col].ToString();
-                            if (string.IsNullOrWhiteSpace(cellData) || seenValues.Contains(cellData))
+                            if (ids.Contains(int.Parse(cellData)))
+                            {
+                             
+                                    // Set the flag to indicate validation failure for this row
+                                    rowValidationFailed = true;
+                                    break; // Exit the loop as soon as a validation failure is encountered
+                            }
+                            if (seenValues.Contains(cellData))
                             {
                                 // Set the flag to indicate validation failure for this row
                                 rowValidationFailed = true;
                                 break; // Exit the loop as soon as a validation failure is encountered
                             }
+                            // Store the value for duplicate checking
                             seenValues.Add(cellData);
                         }
-
 
                         if (!rowValidationFailed)
                         {
                             successdata.Rows.Add(validRowsDataTable.Rows[row].ItemArray);
                         }
                         // If row validation failed, add the entire row data as a comma-separated string to the badRows list
-                        if (rowValidationFailed)
+                        else
                         {
-                            string badRow = string.Join(",", validRowsDataTable.Rows[row].ItemArray); // Join the row data with commas
+                            string badRow = string.Join(",", validRowsDataTable.Rows[row].ItemArray);
                             badRows.Add(badRow);
+                            errorMessages = $"duplicate key value violates unique constrains {primaryKeyColumns.FirstOrDefault()} and {tableName}";
                         }
                     }
+
                 }
-                /////store log data
-                var result = await _excelService.Createlog(tableName, badRows,fileName, successdata);
+                if (badRows.Count > 0)
+                {
+                    badRows.Insert(0, comma_separated_string);
+                }
+                //store log data
+                var result = await _excelService.Createlog(tableName, badRows, fileName, successdata.Rows.Count, errorMessages, successMessage);
 
                 // Build the values for the SQL INSERT statement
-                _excelService.InsertDataFromDataTableToPostgreSQL(successdata, tableName, columns);
+                _excelService.InsertDataFromDataTableToPostgreSQL(successdata, tableName, columns, file);
 
-                _response.Result = result;
-                _response.StatusCode = HttpStatusCode.Created;
-                _response.IsSuccess = true;
-                _response.ErrorMessage.Add("Data saved to the database Successfully.");
-                return Ok(_response);
+                if (successdata.Rows.Count == 0)
+                {
+                    _response.Result = result;
+                    _response.StatusCode = HttpStatusCode.Created;
+                    _response.IsSuccess = true;
+                    _response.ErrorMessage.Add("All Records are incorrect");
+                    return Ok(_response);
+                }
+                else if(badRows.Count == 0) 
+                {
+                    _response.Result = result;
+                    _response.StatusCode = HttpStatusCode.Created;
+                    _response.IsSuccess = true;
+                    _response.ErrorMessage.Add("All records are successfully stored");
+                    return Ok(_response);
+                }
+                else
+                {
+                    _response.Result = result;
+                    _response.StatusCode = HttpStatusCode.Created;
+                    _response.IsSuccess = true;
+                    _response.ErrorMessage.Add("Passcount records are successfully stored failcount records are incorrect ");
+                    return Ok(_response);
+                }
+              
 
             }
             catch (Exception ex)
@@ -225,8 +294,12 @@ namespace DMU_Git.Controllers
                 string[] errorParts = ex.Message.Split(':');
                 if (errorParts.Length >= 2)
                 {
+
                     string[] errorMessageParts = errorParts[1].Split('\n');
                     string errorMessage = errorMessageParts[0].Trim();
+                    // Log the error message and details to your log table
+                    await _excelService.Createlog(tableName, badRows, fileName, successdata.Rows.Count, errorMessage, successMessage);
+
                     var response = new APIResponse
                     {
                         StatusCode = HttpStatusCode.InternalServerError,
@@ -247,39 +320,10 @@ namespace DMU_Git.Controllers
                     return StatusCode((int)HttpStatusCode.InternalServerError, response);
                 }
             }
+
         }
 
-        //private bool TableExists(string tableName)
-        //{
-        //    try
-        //    {
-        //        using (var connection =  _context.Database.GetDbConnection())
-        //        {
-        //            connection.Open();
 
-        //            using (var command = connection.CreateCommand())
-        //            {
-        //                command.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = @TableName";
-        //                command.Parameters.Add(new NpgsqlParameter("TableName", NpgsqlDbType.Text) { Value = tableName });
-
-        //                var result = command.ExecuteScalar();
-
-        //                if (result != null && result != DBNull.Value)
-        //                {
-        //                    return Convert.ToInt32(result) > 0;
-        //                }
-        //            }
-
-        //            connection.Close();
-        //        }
-
-        //        return false;
-        //    }
-        //    catch (Exception)
-        //    {
-        //        return false;
-        //    }
-        //}
 
 
     }

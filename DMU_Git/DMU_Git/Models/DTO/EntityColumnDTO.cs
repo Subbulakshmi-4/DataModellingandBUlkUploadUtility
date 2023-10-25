@@ -17,6 +17,10 @@ namespace DMU_Git.Models.DTO
         public string DefaultValue { get; set; }
         public bool ColumnPrimaryKey { get; set; }
 
+        public string True { get; set; }
+
+        public string False { get; set; }
+
         public static explicit operator EntityColumnDTO(EntityColumnListMetadataModel data)
         {
             return new EntityColumnDTO
@@ -29,7 +33,9 @@ namespace DMU_Git.Models.DTO
                 Description = data.Description, // Map the Description property
                 IsNullable = data.IsNullable,
                 DefaultValue = data.DefaultValue,
-                ColumnPrimaryKey = data.ColumnPrimaryKey
+                ColumnPrimaryKey = data.ColumnPrimaryKey,
+                True = data.True,
+                False = data.False,
             };
         }
 
@@ -45,7 +51,9 @@ namespace DMU_Git.Models.DTO
                 Description = data.Description, // Map the Description property
                 IsNullable = data.IsNullable,
                 DefaultValue = data.DefaultValue,
-                ColumnPrimaryKey = data.ColumnPrimaryKey
+                ColumnPrimaryKey = data.ColumnPrimaryKey,
+                True = data.True,
+                False= data.False,
             };
         }
     }

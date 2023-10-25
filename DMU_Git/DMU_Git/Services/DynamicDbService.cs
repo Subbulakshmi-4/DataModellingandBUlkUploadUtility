@@ -136,6 +136,8 @@ namespace DMU_Git.Services
                     Description = column.Description,
                     IsNullable = column.IsNullable,
                     DefaultValue = column.DefaultValue,
+                    True = column.True,
+                    False = column.False,
                     ColumnPrimaryKey = column.ColumnPrimaryKey,
                     CreatedDate = DateTime.UtcNow,
                     UpdatedDate = DateTime.UtcNow,
