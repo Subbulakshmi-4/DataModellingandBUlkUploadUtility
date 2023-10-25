@@ -25,8 +25,6 @@ namespace DMU_Git.Controllers
 
 
 
-
-
         [HttpPost("create-table")]
         public async Task<ActionResult> CreateTable([FromBody] TableCreationRequestDTO request)
         
