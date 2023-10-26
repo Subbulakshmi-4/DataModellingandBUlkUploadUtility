@@ -112,7 +112,7 @@ namespace DMU_Git.Controllers
                 return StatusCode((int)HttpStatusCode.InternalServerError, response);
             }
         }
-
+          
 
 
         // method to map the DTO to the original model
@@ -126,10 +126,8 @@ namespace DMU_Git.Controllers
                     EntityColumnName = columnDto.EntityColumnName,
                     DataType = columnDto.DataType,
                     Length = columnDto.Length,
-                    StringMaxLength = columnDto.StringMaxLength,
-                    StringMinLength = columnDto.StringMinLength,
-                    NumberMaxValue = columnDto.NumberMaxValue,
-                    NumberMinValue = columnDto.NumberMinValue,
+                   MinLength = columnDto.MinLength,
+                   MaxLength = columnDto.MaxLength,
                     DateMaxValue = columnDto.DateMaxValue,
                     DateMinValue = columnDto.DateMinValue,
                     Description = columnDto.Description,
