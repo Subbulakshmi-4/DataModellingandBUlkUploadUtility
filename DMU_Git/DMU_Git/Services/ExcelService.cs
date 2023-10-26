@@ -321,6 +321,21 @@ public class ExcelService : IExcelService
         }
     }
 
+    private string GetExcelColumnName(int columnNumber)
+    {
+        int dividend = columnNumber;
+        string columnName = string.Empty;
+
+        while (dividend > 0)
+        {
+            int modulo = (dividend - 1) % 26;
+            columnName = Convert.ToChar(65 + modulo) + columnName;
+            dividend = (dividend - modulo) / 26;
+        }
+
+        return columnName;
+    }
+
     private int GetEntityIdByEntityName(string entityName)
     {
         // Assuming you have a list of EntityListMetadataModel instances
