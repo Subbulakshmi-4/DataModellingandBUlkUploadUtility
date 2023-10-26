@@ -22,6 +22,7 @@ namespace DMU_Git.Services
 
 
 
+
         public async Task<bool> TableExistsAsync(string tableName)
         {
             var lowerCaseTableName = tableName.ToLower();

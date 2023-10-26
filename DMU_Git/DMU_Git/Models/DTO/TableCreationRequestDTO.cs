@@ -14,6 +14,7 @@
         public int Length { get; set; }
         public int? MinLength { set; get; }
 
+
         public int? MaxLength { set; get; }
         public string DateMinValue { set; get; }
 

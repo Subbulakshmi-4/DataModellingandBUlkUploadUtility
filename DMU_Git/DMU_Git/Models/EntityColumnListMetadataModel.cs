@@ -14,6 +14,7 @@ namespace DMU_Git.Models
 
         public string Datatype { get; set; }
 
+
         public int Length { get; set; }
         public int? MinLength { set; get; }
 

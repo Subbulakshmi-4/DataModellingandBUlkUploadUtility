@@ -11,6 +11,7 @@
         public string EntityColumnName { get; set; }
         public string DataType { get; set; }
 
+
         public int Length { get; set; }
         public int? MinLength { set; get; }
 
