@@ -232,7 +232,7 @@ namespace DMU_Git.Controllers
                                     // Exit the loop as soon as a validation failure is encountered
                                     // Get the name of the column where the error occurred
                                 string columnName = columnsDTO[primaryKeyColumnIndex].EntityColumnName;
-                                errorMessages = $"Duplicate key value violates unique constraints in column '{columnName}' in {tableName}";
+                                errorMessages =  $"Duplicate key value violates unique constraints in column '{columnName}' in {tableName}";
                                 break;
                             }
                             if (seenValues.Contains(cellData))
