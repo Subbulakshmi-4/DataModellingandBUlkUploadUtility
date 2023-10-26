@@ -257,6 +257,7 @@ public class ExcelService : IExcelService
                 validation.ErrorTitle = "Error";
                 validation.ErrorMessage = "Enter a valid character.";
             }
+
             else if (dataType.Equals("bytea", StringComparison.OrdinalIgnoreCase))
             {
                 // Byte validation
