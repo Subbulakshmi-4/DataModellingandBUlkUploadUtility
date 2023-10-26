@@ -17,9 +17,9 @@
         public int StringMinLength { set; get; }
         public int? NumberMaxValue { set; get; }
         public int? NumberMinValue { set; get; }
-        public DateTime? DateMinValue { set; get; }
+        public string DateMinValue { set; get; }
 
-        public DateTime? DateMaxValue { set; get; }
+        public string DateMaxValue { set; get; }
 
         public string Description { get; set; }
         public bool IsNullable { get; set; }
