@@ -3,9 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DMU_Git.Models
 {
-    public class EntityColumnListMetadataModel :BaseModel
+    public class EntityColumnListMetadataModel : BaseModel
     {
-       
+
         public int Id { get; set; }
         public string EntityColumnName { get; set; }
 
@@ -15,6 +15,16 @@ namespace DMU_Git.Models
         public string Datatype { get; set; }
 
         public int Length { get; set; }
+        public int StringMaxLength { set; get; }
+
+        public int StringMinLength { set; get; }
+
+        public int? NumberMaxValue { set; get; }
+        public int? NumberMinValue { set; get; }
+
+        public DateTime? DateMinValue { set; get; }
+
+        public DateTime? DateMaxValue { set; get; }
 
         public string Description { get; set; }
 
