@@ -130,10 +130,8 @@ namespace DMU_Git.Services
                     EntityColumnName = column.EntityColumnName,
                     Datatype = column.DataType,
                     Length = column.Length,
-                   StringMinLength = column.StringMinLength,
-                   StringMaxLength = column.StringMaxLength,
-                   NumberMinValue = column.NumberMinValue,
-                   NumberMaxValue = column.NumberMaxValue,
+                 MinLength = column.MinLength,
+                 MaxLength = column.MaxLength,
                    DateMinValue = column.DateMinValue,
                     DateMaxValue = column.DateMaxValue,
                     Description = column.Description,
@@ -192,15 +190,15 @@ namespace DMU_Git.Services
                         createTableSql += "integer";
 
                         // Add minimum value constraint for int columns
-                        if (column.NumberMinValue.HasValue)
+                        if (column.MinLength.HasValue)
                         {
-                            createTableSql += $" CHECK (\"{column.EntityColumnName}\" >= {column.NumberMinValue})";
+                            createTableSql += $" CHECK (\"{column.EntityColumnName}\" >= {column.MinLength})";
                         }
 
                         // Add maximum value constraint for int columns
-                        if (column.NumberMaxValue.HasValue)
+                        if (column.MaxLength.HasValue)
                         {
-                            createTableSql += $" CHECK (\"{column.EntityColumnName}\" <= {column.NumberMaxValue})";
+                            createTableSql += $" CHECK (\"{column.EntityColumnName}\" <= {column.MaxLength})";
                         }
                         break;
                     case "date":
@@ -220,9 +218,9 @@ namespace DMU_Git.Services
 
                     case "string":
                         createTableSql += $"varchar";
-                        if (column.StringMaxLength > 0)
+                        if (column.MaxLength > 0)
                         {
-                            createTableSql += $"({column.StringMaxLength})";
+                            createTableSql += $"({column.MaxLength})";
                         }
                         else
                         {
@@ -231,15 +229,15 @@ namespace DMU_Git.Services
                         }
 
                         // Add minimum length constraint
-                        if (column.StringMinLength > 0)
+                        if (column.MinLength > 0)
                         {
-                            createTableSql += $" CHECK (LENGTH(\"{column.EntityColumnName}\") >= {column.StringMinLength})";
+                            createTableSql += $" CHECK (LENGTH(\"{column.EntityColumnName}\") >= {column.MinLength})";
                         }
 
                         // Add maximum length constraint
-                        if (column.StringMaxLength > 0)
+                        if (column.MaxLength > 0)
                         {
-                            createTableSql += $" CHECK (LENGTH(\"{column.EntityColumnName}\") <= {column.StringMaxLength})";
+                            createTableSql += $" CHECK (LENGTH(\"{column.EntityColumnName}\") <= {column.MaxLength})";
                         }
                         break;
 

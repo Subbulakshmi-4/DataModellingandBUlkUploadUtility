@@ -15,12 +15,9 @@ namespace DMU_Git.Models
         public string Datatype { get; set; }
 
         public int Length { get; set; }
-        public int StringMaxLength { set; get; }
+        public int? MinLength { set; get; }
 
-        public int StringMinLength { set; get; }
-
-        public int? NumberMaxValue { set; get; }
-        public int? NumberMinValue { set; get; }
+        public int? MaxLength { set; get; }
 
         public string DateMinValue { set; get; }
 
