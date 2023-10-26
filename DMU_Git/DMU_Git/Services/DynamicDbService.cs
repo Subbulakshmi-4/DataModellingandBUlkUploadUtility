@@ -36,9 +36,6 @@ namespace DMU_Git.Services
             {
                 // Create the table metadata
                 var entityList = await CreateTableMetadataAsync(request);
-
-
-
                 if (entityList == null)
                 {
                     return false;
@@ -133,6 +130,12 @@ namespace DMU_Git.Services
                     EntityColumnName = column.EntityColumnName,
                     Datatype = column.DataType,
                     Length = column.Length,
+                   StringMinLength = column.StringMinLength,
+                   StringMaxLength = column.StringMaxLength,
+                   NumberMinValue = column.NumberMinValue,
+                   NumberMaxValue = column.NumberMaxValue,
+                   DateMinValue = column.DateMinValue,
+                    DateMaxValue = column.DateMaxValue,
                     Description = column.Description,
                     IsNullable = column.IsNullable,
                     DefaultValue = column.DefaultValue,
@@ -188,18 +191,61 @@ namespace DMU_Git.Services
                 {
                     case "int":
                         createTableSql += "integer";
-                        if (column.Length > 0)
+
+                        // Add minimum value constraint for int columns
+                        if (column.NumberMinValue.HasValue)
                         {
-                            createTableSql += $"({column.Length})";
+                            createTableSql += $" CHECK (\"{column.EntityColumnName}\" >= {column.NumberMinValue})";
+                        }
+
+                        // Add maximum value constraint for int columns
+                        if (column.NumberMaxValue.HasValue)
+                        {
+                            createTableSql += $" CHECK (\"{column.EntityColumnName}\" <= {column.NumberMaxValue})";
                         }
                         break;
+                    case "date":
+                        createTableSql += "date";
+
+                        // Add minimum date constraint for date columns
+                        if (column.DateMinValue.HasValue)
+                        {
+                            createTableSql += $" CHECK (\"{column.EntityColumnName}\" >= '{column.DefaultValue:yyyy-MM-dd}')";
+                        }
+
+                        // Add maximum date constraint for date columns
+                        if (column.DateMaxValue.HasValue)
+                        {
+                            createTableSql += $" CHECK (\"{column.EntityColumnName}\" <= '{column.DateMaxValue:yyyy-MM-dd}')";
+                        }
+                        break;
+
                     case "string":
                         createTableSql += $"varchar";
-                        if (column.Length > 0)
+                        if (column.StringMaxLength > 0)
                         {
-                            createTableSql += $"({column.Length})";
+                            createTableSql += $"({column.StringMaxLength})";
+                        }
+                        else
+                        {
+                            // Set default length if not specified
+                            createTableSql += "(255)";
+                        }
+
+                        // Add minimum length constraint
+                        if (column.StringMinLength > 0)
+                        {
+                            createTableSql += $" CHECK (LENGTH(\"{column.EntityColumnName}\") >= {column.StringMinLength})";
+                        }
+
+                        // Add maximum length constraint
+                        if (column.StringMaxLength > 0)
+                        {
+                            createTableSql += $" CHECK (LENGTH(\"{column.EntityColumnName}\") <= {column.StringMaxLength})";
                         }
                         break;
+
+
                     case "char":
                         createTableSql += $"char";
                         if (column.Length == 1)
@@ -207,12 +253,13 @@ namespace DMU_Git.Services
                             createTableSql += $"({column.Length})";
                         }
                         break;
+
                     case "boolean":
                         createTableSql += "boolean";
                         break;
-                    case "Date":
-                        createTableSql += "date";
-                        break;
+
+                 
+
                     case "time":
                         createTableSql += "time";
                         break;

@@ -106,7 +106,7 @@ namespace DMU_Git.Controllers
             int? uploadedEntityId = null;
             uploadedEntityId = _excelService.GetEntityIdByEntityNamefromui(tableName);
             var idfromtemplate = _excelService.GetEntityIdFromTemplate(file);
-            if (idfromtemplate == null)
+            if (idfromtemplate != uploadedEntityId)
             {
                 _response.StatusCode = HttpStatusCode.BadRequest;
                 _response.IsSuccess = false;
@@ -212,20 +212,28 @@ namespace DMU_Git.Controllers
                     HashSet<string> seenValues = new HashSet<string>(); // To store values in primary key columns for duplicate checking
 
                     var ids = await _excelService.GetAllIdsFromDynamicTable(tableName);//primary key id pass
-
+                    
+                 
                     for (int row = 0; row < validRowsDataTable.Rows.Count; row++)
                     {
                         bool rowValidationFailed = false; // Flag to track row validation
 
-                        foreach (var col in primaryKeyColumns)
-                        {
-                            string cellData = validRowsDataTable.Rows[row][col].ToString();
-                            if (ids.Contains(int.Parse(cellData)))
+                       // foreach (var col in primaryKeyColumns)
+                            for (int col = 0; col < primaryKeyColumns.Count; col++)
+                            {
+                            int primaryKeyColumnIndex = primaryKeyColumns[col];
+                            //string cellData = validRowsDataTable.Rows[row][col].ToString();
+                            string cellData = validRowsDataTable.Rows[row][primaryKeyColumnIndex].ToString();
+                            if (ids.Contains(int.Parse(cellData)) || seenValues.Contains(cellData))
                             {
                              
                                     // Set the flag to indicate validation failure for this row
                                     rowValidationFailed = true;
-                                    break; // Exit the loop as soon as a validation failure is encountered
+                                    // Exit the loop as soon as a validation failure is encountered
+                                    // Get the name of the column where the error occurred
+                                string columnName = columnsDTO[primaryKeyColumnIndex].EntityColumnName;
+                                errorMessages =  $"Duplicate key value violates unique constraints in column '{columnName}' in {tableName}";
+                                break;
                             }
                             if (seenValues.Contains(cellData))
                             {
@@ -246,7 +254,7 @@ namespace DMU_Git.Controllers
                         {
                             string badRow = string.Join(",", validRowsDataTable.Rows[row].ItemArray);
                             badRows.Add(badRow);
-                            errorMessages = $"duplicate key value violates unique constrains {primaryKeyColumns.FirstOrDefault()} and {tableName}";
+                          //errorMessages = $"duplicate key value violates unique constrains in column in {tableName}";
                         }
                     }
 
@@ -264,7 +272,7 @@ namespace DMU_Git.Controllers
                 if (successdata.Rows.Count == 0)
                 {
                     _response.Result = result;
-                    _response.StatusCode = HttpStatusCode.Created;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
                     _response.IsSuccess = true;
                     _response.ErrorMessage.Add("All Records are incorrect");
                     return Ok(_response);
@@ -280,7 +288,7 @@ namespace DMU_Git.Controllers
                 else
                 {
                     _response.Result = result;
-                    _response.StatusCode = HttpStatusCode.Created;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
                     _response.IsSuccess = true;
                     _response.ErrorMessage.Add("Passcount records are successfully stored failcount records are incorrect ");
                     return Ok(_response);
@@ -294,7 +302,6 @@ namespace DMU_Git.Controllers
                 string[] errorParts = ex.Message.Split(':');
                 if (errorParts.Length >= 2)
                 {
-
                     string[] errorMessageParts = errorParts[1].Split('\n');
                     string errorMessage = errorMessageParts[0].Trim();
                     // Log the error message and details to your log table
