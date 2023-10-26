@@ -10,8 +10,10 @@ using DMU_Git.Models;
 using Dapper;
 using System.Text;
 using System.Net;
-//using System.Windows.Forms;
 using Spire.Xls.Core;
+using System.Drawing;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Buffers;
 
 public class ExcelService : IExcelService
 {
@@ -23,7 +25,7 @@ public class ExcelService : IExcelService
         _context = context;
         _dbConnection = dbConnection;
     }
-
+        
     public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
     {
         Workbook workbook = new Workbook();
@@ -34,10 +36,12 @@ public class ExcelService : IExcelService
             
         // Set protection options for the first sheet (read-only)
         worksheet.Protect("your_password", SheetProtectionType.All);
+        worksheet.Protect("your_password", SheetProtectionType.None);
 
-        
+
 
         // Add column headers for the first sheet
+
         worksheet.Range["A2"].Text = "SI.No";
         worksheet.Range["B2"].Text = "Data Item";
         worksheet.Range["C2"].Text = "Data Type";
@@ -46,20 +50,34 @@ public class ExcelService : IExcelService
         worksheet.Range["F2"].Text = "Blank Not Allowed";
         worksheet.Range["G2"].Text = "Default Value";
         worksheet.Range["H2"].Text = "Unique Value";
-        worksheet.Range["I2"].Text = "True Value";
-        worksheet.Range["J2"].Text = "False Value";
+        worksheet.Range["I2"].Text = "Option1";
+        worksheet.Range["J2"].Text = "Option2";
 
         // Populate the first sheet with column details
         for (int i = 0; i < columns.Count; i++)
         {
             var column = columns[i];
-            worksheet.Range[i + 3, 1].Value = column.Id.ToString();
+            worksheet.Range[i + 3, 1].Value = (i+1).ToString();
             worksheet.Range[i + 3, 2].Text = column.EntityColumnName;
             worksheet.Range[i + 3, 3].Text = column.Datatype;
-            worksheet.Range[i + 3, 4].Text = column.Length.ToString();
+            worksheet.Range[i + 3, 4].Text = string.IsNullOrEmpty(column.Length.ToString()) || column.Length.ToString() == "0".ToString() ? string.Empty : column.Length.ToString();
             worksheet.Range[i + 3, 5].Text = column.Description;
             worksheet.Range[i + 3, 6].Text = column.IsNullable.ToString();
-            worksheet.Range[i + 3, 7].Text = column.DefaultValue.ToString();
+            if (column.Datatype.ToLower() == "boolean")
+            {
+                if (column.DefaultValue.ToLower() == "true")
+                {
+                    worksheet.Range[i + 3, 7].Text = column.True;
+                }
+                else if (column.DefaultValue.ToLower() == "false")
+                {
+                    worksheet.Range[i + 3, 7].Text = column.False;
+                }
+            }
+            else
+            {
+                worksheet.Range[i + 3, 7].Text = column.DefaultValue.ToString();
+            }
             worksheet.Range[i + 3, 8].Text = column.ColumnPrimaryKey.ToString();
             worksheet.Range[i + 3, 9].Text = column.True.ToString();
             worksheet.Range[i + 3, 10].Text = column.False.ToString();
@@ -81,11 +99,9 @@ public class ExcelService : IExcelService
         var staticContentRange = worksheet.Range[lastRowIndex + 2, 1, lastRowIndex + 5, 5];
         staticContentRange.Style.FillPattern = ExcelPatternType.Solid;
         staticContentRange.Style.KnownColor = ExcelColors.Yellow;
-
-       
-
         // Add the second worksheet for column names
         Worksheet columnNamesWorksheet = workbook.Worksheets.Add("Fill data");
+
 
         // Add column names as headers horizontally in the second sheet
         for (int i = 0; i < columns.Count; i++)
@@ -93,6 +109,7 @@ public class ExcelService : IExcelService
             var column = columns[i];
             columnNamesWorksheet.Range[1, i + 1].Text = column.EntityColumnName;
         }
+       
 
         string[] sheetsToRemove = { "Sheet2", "Sheet3"}; // Names of sheets to be removed
         foreach (var sheetName in sheetsToRemove)
@@ -103,10 +120,6 @@ public class ExcelService : IExcelService
                 workbook.Worksheets.Remove(sheetToRemove);
             }
         }
-        // Loop through columns in "Column Names" worksheet and protect columns without headers
-        var columnCount = columns.Count;
-        // Apply data validation based on the data type to the "Column Names" sheet
-
         AddDataValidation(columnNamesWorksheet, columns);
         
         using (MemoryStream memoryStream = new MemoryStream())
@@ -114,6 +127,16 @@ public class ExcelService : IExcelService
             workbook.SaveToStream(memoryStream, FileFormat.Version2013);
             return memoryStream.ToArray();
         }
+    }
+    private void HighlightDuplicates(Worksheet sheet, int columnNumber, int startRow, int endRow)
+    {
+        // Convert the column number to a column letter (e.g., 1 => "A", 2 => "B")
+        string columnLetter = GetExcelColumnName(columnNumber);
+
+        string range = $"{columnLetter}{startRow}:{columnLetter}{endRow}";
+        ConditionalFormatWrapper format = sheet.Range[range].ConditionalFormats.AddCondition();
+        format.FormatType = ConditionalFormatType.DuplicateValues;
+        format.BackColor = Color.IndianRed;
     }
 
     private void AddDataValidation(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns)
@@ -170,7 +193,14 @@ public class ExcelService : IExcelService
                     validation.ErrorTitle = "Error";
                     if (isPrimaryKey)
                     {
+                        validation.CompareOperator = ValidationComparisonOperator.Between;
+                        validation.Formula1 = "1";  // Minimum length
+                        validation.Formula2 = length.ToString(); // Maximum length
+                        HighlightDuplicates(columnNamesWorksheet, col, startRow, endRow);
+                        validation.InputTitle = "Input Data";
                         validation.InputMessage = "The value must be a unique string with a length between 1 and " + length + " characters.";
+                        validation.ErrorTitle = "Error";
+                        validation.ErrorMessage = "Values must be unique";
                     }
                 }
                 else
@@ -183,24 +213,35 @@ public class ExcelService : IExcelService
                     validation.InputMessage = "Enter the string";
                     validation.ErrorTitle = "Error";
                     validation.ErrorMessage = "Entered value exceeds the length";
+
                 }
             }
-            else if (dataType.Equals("int", StringComparison.OrdinalIgnoreCase))
+            if (dataType.Equals("int", StringComparison.OrdinalIgnoreCase))
             {
-                // Number validation
                 validation.CompareOperator = ValidationComparisonOperator.Between;
-                validation.Formula1 = "1";
-                validation.Formula2 = "1000000";  // Adjust the number range as needed
+                validation.Formula1 = "0"; // Minimum value (adjust as needed)
+                validation.Formula2 = "1000000"; // Maximum value (adjust as needed)
                 validation.AllowType = CellDataType.Integer;
                 validation.InputTitle = "Input Data";
-                validation.InputMessage = "Type a number between 1 and 1,000,000 in this cell.";
+                validation.InputMessage = "Type an integer between 0 and 1,000,000 in this cell.";
                 validation.ErrorTitle = "Error";
-                validation.ErrorMessage = "Enter a valid number";
+                validation.ErrorMessage = "Enter a valid integer between 0 and 1,000,000.";
 
+                if (isPrimaryKey)
+                {
+                    validation.CompareOperator = ValidationComparisonOperator.Between;
+                    validation.Formula1 = "0"; // Minimum value for primary key
+                    validation.Formula2 = "1000000"; // Maximum value for primary key
+                    HighlightDuplicates(columnNamesWorksheet, col, startRow, endRow);
+                    validation.InputTitle = "Input Data";
+                    validation.InputMessage = "The value must be a unique integer between 0 and 1,000,000.";
+                    validation.ErrorTitle = "Error";
+                    validation.ErrorMessage = "Values must be unique integers within the specified range.";
+                }
             }
+
             else if (dataType.Equals("Date", StringComparison.OrdinalIgnoreCase))
             {
-               
                 // Date validation
                 validation.CompareOperator = ValidationComparisonOperator.Between;
                 validation.Formula1 = "01/01/1900";  // Adjust the minimum date as needed
@@ -208,7 +249,8 @@ public class ExcelService : IExcelService
                 validation.AllowType = CellDataType.Date;
                 validation.InputTitle = "Input Data";
                 validation.InputMessage = "Type a date between 01/01/1900 and 12/12/2023 in this cell.";
-                validation.ErrorTitle = "Error001";
+                validation.ErrorTitle = "Error";
+                validation.ErrorMessage = "Enter a valid date";
             }
             else if (dataType.Equals("boolean", StringComparison.OrdinalIgnoreCase))
             {
@@ -219,7 +261,55 @@ public class ExcelService : IExcelService
                 validation.ErrorMessage = "Select values from dropdown";
                 validation.InputMessage = "Select values from dropdown";
             }
-                      
+            else if (dataType.Equals("timestamp", StringComparison.OrdinalIgnoreCase))
+            {
+                // Date and time validation
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.Formula1 = "01/01/1900";
+                validation.Formula2 = "12/31/9999"; // Adjust the range as needed
+                validation.AllowType = CellDataType.Date;
+                validation.InputTitle = "Input Data";
+                validation.InputMessage = "Type a date and time in the specified format.";
+                validation.ErrorTitle = "Error";
+                validation.ErrorMessage = "Enter a valid date and time.";
+            }
+            else if (dataType.Equals("char", StringComparison.OrdinalIgnoreCase))
+            {
+                // Character validation for a single character
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.Formula1 = "1";
+                validation.Formula2 = "1";
+                validation.AllowType = CellDataType.TextLength;
+                validation.InputTitle = "Input Data";
+                validation.InputMessage = "Type a single character.";
+                validation.ErrorTitle = "Error";
+                validation.ErrorMessage = "Enter a valid character.";
+            }
+
+            else if (dataType.Equals("bytea", StringComparison.OrdinalIgnoreCase))
+            {
+                // Byte validation
+                // Modify the validation code for bytea data
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.Formula1 = "1"; // Set a minimum length of 1
+                validation.Formula2 = "1000000"; // Set a maximum length as needed
+                validation.AllowType = CellDataType.TextLength;
+                validation.InputTitle = "Input Data";
+                validation.InputMessage = "Type a byte array with a length between 1 and 1000000 characters.";
+                validation.ErrorTitle = "Error";
+                validation.ErrorMessage = "Invalid byte array length";
+
+                // Include byte validation
+                bool isValidByteA = IsValidByteA(columns[col - 1].DefaultValue, 1, 1000000); // Modify the length limits as needed
+
+                if (!isValidByteA)
+                {
+                    // Data does not meet byte validation criteria
+                    validation.ErrorMessage = "Invalid byte array format or length.";
+                }
+            }
+
+
             // Add more conditions for other data types as needed
         }
         for (int i = 2; i <= 65537; i++)
@@ -230,6 +320,7 @@ public class ExcelService : IExcelService
             lockrange.Style.Locked = false;
         }
     }
+
     private int GetEntityIdByEntityName(string entityName)
     {
         // Assuming you have a list of EntityListMetadataModel instances
@@ -374,7 +465,24 @@ public class ExcelService : IExcelService
                 return false; // Unknown data type; you can adjust this logic accordingly.
         }
     }
+    public bool IsValidByteA(string data, int minLength, int maxLength)
+    {
+        // Check if the input is a valid hexadecimal string
+        if (!IsHexString(data))
+        {
+            return false;
+        }
 
+        // Check if the length is within acceptable limits
+        if (data.Length < minLength || data.Length > maxLength)
+        {
+            return false;
+        }
+
+        // Add more specific checks if needed
+
+        return true;
+    }
     public bool IsValidByteA(string data)
     {
         // Assuming that the data is represented as a hexadecimal string,

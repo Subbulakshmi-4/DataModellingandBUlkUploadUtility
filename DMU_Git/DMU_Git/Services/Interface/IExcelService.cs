@@ -28,5 +28,7 @@ namespace DMU_Git.Services.Interface
         public  Task<List<int>> GetAllIdsFromDynamicTable(string tableName);
 
         public bool TableExists(string tableName);
+        public bool IsValidByteA(string data);
+        public bool IsHexString(string input);
     }
 }
