@@ -207,13 +207,12 @@ namespace DMU_Git.Services
                         createTableSql += "date";
 
                         // Add minimum date constraint for date columns
-                        if (column.DateMinValue.HasValue)
+                        if (!string.IsNullOrEmpty(column.DateMinValue))
                         {
-                            createTableSql += $" CHECK (\"{column.EntityColumnName}\" >= '{column.DefaultValue:yyyy-MM-dd}')";
+                            createTableSql += $" CHECK (\"{column.EntityColumnName}\" >= '{column.DateMinValue:yyyy-MM-dd}')";
                         }
 
-                        // Add maximum date constraint for date columns
-                        if (column.DateMaxValue.HasValue)
+                        if (!string.IsNullOrEmpty(column.DateMaxValue))
                         {
                             createTableSql += $" CHECK (\"{column.EntityColumnName}\" <= '{column.DateMaxValue:yyyy-MM-dd}')";
                         }
