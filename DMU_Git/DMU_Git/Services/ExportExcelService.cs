@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using DMU_Git.Data;
+﻿using DMU_Git.Data;
 using Microsoft.EntityFrameworkCore;
 using DMU_Git.Models;
 
