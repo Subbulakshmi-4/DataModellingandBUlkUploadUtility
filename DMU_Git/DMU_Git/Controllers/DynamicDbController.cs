@@ -5,8 +5,6 @@ using Microsoft.AspNetCore.Cors;
 using DMU_Git.Models.TableCreationRequestDTO;
 using System.Net;
 
-
-
 namespace DMU_Git.Controllers
 {
     [Route("api/dynamic")]
@@ -15,22 +13,13 @@ namespace DMU_Git.Controllers
     public class DynamicDbController : ControllerBase
     {
         private readonly DynamicDbService _dynamicDbService;
-
-
-
         public DynamicDbController(DynamicDbService dynamicDbService)
         {
             _dynamicDbService = dynamicDbService;
         }
 
-
-
         [HttpPost("create-table")]
         public async Task<ActionResult> CreateTable([FromBody] TableCreationRequestDTO request)
-
-
-
-
         {
             try
             {
@@ -43,12 +32,8 @@ namespace DMU_Git.Controllers
                         ErrorMessage = new List<string> { "Invalid request data." },
                         Result = null
                     };
-
-
-
                     return BadRequest(response);
                 }
-
                 var existingTable = await _dynamicDbService.TableExistsAsync(request.TableName);
                 if (existingTable)
                 {
@@ -59,14 +44,9 @@ namespace DMU_Git.Controllers
                         ErrorMessage = new List<string> { $"Table '{request.TableName}' already exists." },
                         Result = null
                     };
-
                     return BadRequest(response);
                 }
-
                 bool tableCreated = await _dynamicDbService.CreateDynamicTableAsync(MapToModel(request));
-
-
-
                 if (tableCreated)
                 {
                     var response = new APIResponse
@@ -76,9 +56,6 @@ namespace DMU_Git.Controllers
                         ErrorMessage = new List<string>(),
                         Result = $"Table '{request.TableName}' created successfully."
                     };
-
-
-
                     return Ok(response);
                 }
                 else
@@ -90,9 +67,6 @@ namespace DMU_Git.Controllers
                         ErrorMessage = new List<string> { $"An error occurred while creating the table '{request.TableName}'." },
                         Result = null
                     };
-
-
-
                     return StatusCode((int)HttpStatusCode.InternalServerError, response);
                 }
             }
@@ -105,17 +79,11 @@ namespace DMU_Git.Controllers
                     ErrorMessage = new List<string> { "An error occurred while creating the table." },
                     Result = null
                 };
-
-
-
                 Console.WriteLine(ex);
                 return StatusCode((int)HttpStatusCode.InternalServerError, response);
             }
         }
-          
 
-
-        // method to map the DTO to the original model
         private TableCreationRequest MapToModel(TableCreationRequestDTO dto)
         {
             return new TableCreationRequest
