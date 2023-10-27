@@ -9,28 +9,20 @@ using Spire.Xls;
 using DMU_Git.Models;
 using Dapper;
 using System.Text;
-using System.Net;
-using Spire.Xls.Core;
 using System.Drawing;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using System.Buffers;
-
 public class ExcelService : IExcelService
 {
     private readonly ApplicationDbContext _context;
     private readonly IDbConnection _dbConnection;
-
     public ExcelService(ApplicationDbContext context, IDbConnection dbConnection)
     {
         _context = context;
         _dbConnection = dbConnection;
     }
-        
     public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
     {
         Workbook workbook = new Workbook();
         Worksheet worksheet = workbook.Worksheets[0];
-        
         // Add the first worksheet with detailed column information
         worksheet.Name = "DataDictionary";
             
@@ -138,7 +130,6 @@ public class ExcelService : IExcelService
         format.FormatType = ConditionalFormatType.DuplicateValues;
         format.BackColor = Color.IndianRed;
     }
-
     private void AddDataValidation(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns)
     {
 
@@ -320,8 +311,6 @@ public class ExcelService : IExcelService
             lockrange.Style.Locked = false;
         }
     }
-
-
     private string GetExcelColumnName(int columnNumber)
     {
         int dividend = columnNumber;
@@ -336,7 +325,6 @@ public class ExcelService : IExcelService
 
         return columnName;
     }
-
     private int GetEntityIdByEntityName(string entityName)
     {
         // Assuming you have a list of EntityListMetadataModel instances
@@ -359,7 +347,6 @@ public class ExcelService : IExcelService
             throw new Exception("Entity not found");
         }
     }
-
     private List<EntityListMetadataModel> GetEntityListMetadataModels()
     {
         {
@@ -368,7 +355,6 @@ public class ExcelService : IExcelService
             return entityListMetadataModels;
         }
     }
-
     public DataTable ReadExcelFromFormFile(IFormFile excelFile)
     {
         using (Stream stream = excelFile.OpenReadStream())
@@ -376,9 +362,7 @@ public class ExcelService : IExcelService
             using (var package = new ExcelPackage(stream))
             {
                 DataTable dataTable = new DataTable();
-
                 ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
-
                 for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
                 {
                     // Check the first cell in each column
@@ -388,10 +372,8 @@ public class ExcelService : IExcelService
                         // Skip this column
                         continue;
                     }
-
                     dataTable.Columns.Add(firstCell.Text);
                 }
-
                 for (int rowNumber = 2; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
                 {
                     var dataRow = dataTable.NewRow();
@@ -407,13 +389,19 @@ public class ExcelService : IExcelService
                     }
                     dataTable.Rows.Add(dataRow);
                 }
-
-                dataTable = dataTable.AsEnumerable().Where(row => !row.ItemArray.All(field => field is DBNull || string.IsNullOrWhiteSpace(field.ToString()))).CopyToDataTable();
+                bool allRowsAreNull = dataTable.AsEnumerable()
+                .All(row => row.ItemArray.All(field => field is DBNull || string.IsNullOrWhiteSpace(field.ToString())));
+                if (allRowsAreNull)
+                {
+                    return null;
+                }
+                dataTable = dataTable.AsEnumerable()
+                    .Where(row => !row.ItemArray.All(field => field is DBNull || string.IsNullOrWhiteSpace(field.ToString())))
+                    .CopyToDataTable();
                 return dataTable;
             }
         }
     }
-
     public List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream, int rowCount)
     {
         using (var package = new ExcelPackage(excelFileStream))
@@ -421,21 +409,16 @@ public class ExcelService : IExcelService
             ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
             rowCount = rowCount + 1;
             int colCount = worksheet.Dimension.Columns;
-
             var data = new List<Dictionary<string, string>>();
-
-            // Extract column names and identify which columns to skip
             var columnNames = new List<string>();
             var skipColumns = new List<bool>();
             for (int col = 1; col <= colCount; col++)
             {
                 var columnName = worksheet.Cells[1, col].Value?.ToString();
                 columnNames.Add(columnName);
-
                 // Check if the first cell in this column is empty or null
                 skipColumns.Add(string.IsNullOrWhiteSpace(columnName));
             }
-
             // Read data rows
             for (int row = 2; row <= rowCount; row++)
             {
@@ -455,7 +438,6 @@ public class ExcelService : IExcelService
             return data;
         }
     }
-
     public bool IsValidDataType(string data, string expectedDataType)
     {
         switch (expectedDataType.ToLower())
@@ -509,14 +491,8 @@ public class ExcelService : IExcelService
             {
                 // Convert the hexadecimal string to bytes
                 byte[] bytes = HexStringToBytes(data);
-
-
-
                 // You can add additional checks here if necessary
                 // For example, check if the byte array is not empty or within a specific length range.
-
-
-
                 return true;
             }
             catch (Exception)
@@ -525,12 +501,8 @@ public class ExcelService : IExcelService
                 return false;
             }
         }
-
-
-
         return false;
     }
-
     public bool IsHexString(string input)
     {
         return System.Text.RegularExpressions.Regex.IsMatch(input, @"\A\b[0-9a-fA-F]+\b\Z");
@@ -545,17 +517,14 @@ public class ExcelService : IExcelService
         }
         return bytes;
     }
-
     public IEnumerable<EntityColumnDTO> GetColumnsForEntity(string entityName)
     {
         var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
-
         if (entity == null)
         {
             // Entity not found, return a 404 Not Found response
             return null;
         }
-
         var columnsDTO = _context.EntityColumnListMetadataModels
             .Where(column => column.EntityId == entity.Id)
             .Select(column => new EntityColumnDTO
@@ -571,16 +540,13 @@ public class ExcelService : IExcelService
                 True = column.True,
                 False = column.False
             }).ToList();
-
         if (columnsDTO.Count == 0)
         {
             // No columns found, return a 404 Not Found response with an error message
             return null;
         }
-
         return columnsDTO;
     }
-
     public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, int successdata, string errorMessage, string successMessage)
     {
         var storeentity = await _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
@@ -589,10 +555,16 @@ public class ExcelService : IExcelService
         logParent.User_Id = 1;
         logParent.Entity_Id = storeentity.Id;
         logParent.Timestamp = DateTime.UtcNow;
-        logParent.FailCount = filedata.Count - 1;
+        if (filedata.Count > 0)
+        {
+            logParent.FailCount = filedata.Count - 1;
+        }
+        else
+        {
+            logParent.FailCount = filedata.Count;
+        }
         logParent.PassCount = successdata;
         logParent.RecordCount = logParent.FailCount + logParent.PassCount;
-
         // Insert the LogParent record
         _context.logParents.Add(logParent);
         try
@@ -604,10 +576,7 @@ public class ExcelService : IExcelService
             // Log or handle the exception
             Console.WriteLine("Error: " + ex.Message);
         }
-
         LogChild logChild = new LogChild();
-
-
         int parentId = logParent.ID;
         logChild.ParentID = parentId; // Set the ParentId
         if (filedata.Count() > 0)
@@ -622,8 +591,6 @@ public class ExcelService : IExcelService
             logChild.Filedata = "";
             logChild.ErrorMessage = successMessage;
         }
-
-
         // Insert the LogChild record
         await _context.logChilds.AddAsync(logChild);
         try
@@ -635,7 +602,6 @@ public class ExcelService : IExcelService
             // Log or handle the exception
             Console.WriteLine("Error: " + ex.Message);
         }
-       
         LogDTO logDTO = new LogDTO()
         {
             LogParentDTOs = logParent,
@@ -643,25 +609,18 @@ public class ExcelService : IExcelService
         };
         return logDTO;
     }
-
     public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns, IFormFile file)
     {
-
         var columnProperties = GetColumnsForEntity(tableName).ToList();
-
         var booleancolumns = columnProperties.Where(c => c.Datatype.ToLower() == "boolean").ToList();
-
         List<Dictionary<string, string>> convertedDataList = new List<Dictionary<string, string>>();
-
         foreach (DataRow row in data.Rows)
         {
             Dictionary<string, string> convertedData = new Dictionary<string, string>();
-
             for (int i = 0; i < row.ItemArray.Length; i++)
             {
                 string cellValue = row[i].ToString();
                 EntityColumnDTO columnProperty = columnProperties.FirstOrDefault(col => col.EntityColumnName == data.Columns[i].ColumnName);
-
                 if (columnProperty != null)
                 {
                     // Use the column name from ColumnProperties as the key and the cell value as the value
@@ -670,17 +629,11 @@ public class ExcelService : IExcelService
             }
             convertedDataList.Add(convertedData);
         }
-
         // 'convertedDataList' is now a list of dictionaries, each representing a row in the desired format.
-
-        IConfigurationBuilder configurationBuilder = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile("appsettings.Development.json"); // Make sure the file path is correct
-
+        IConfigurationBuilder configurationBuilder = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile("appsettings.Development.json"); 
         var storeentity = _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
-
         tableName = storeentity.Result.EntityName;
-
         IConfigurationRoot configuration = configurationBuilder.Build();
-
         string connectionString = configuration.GetConnectionString("DefaultConnection");
         var errorDataList = convertedDataList;
         using (NpgsqlConnection connection = new NpgsqlConnection(connectionString))
@@ -689,7 +642,6 @@ public class ExcelService : IExcelService
             List<Dictionary<string, string>> dataToRemove = new List<Dictionary<string, string>>();
             try
             {
-
                 foreach (var data2 in convertedDataList)
                 {
                 foreach (var boolvalue in booleancolumns)
@@ -698,7 +650,6 @@ public class ExcelService : IExcelService
                     {
                         // Update the value for the specific key
                         var value = data2[boolvalue.EntityColumnName];
-
                         if (value.ToLower() == boolvalue.True.ToLower())
                         {
                             data2[boolvalue.EntityColumnName] = "1";
@@ -716,7 +667,6 @@ public class ExcelService : IExcelService
                         string columns2 = string.Join(", ", data2.Keys.Select(k => $"\"{k}\"")); // Use double quotes for case-sensitive column names
                         string values = string.Join(", ", data2.Values.Select(v => $"'{v}'")); // Wrap values in single quotes for strings
                         string query = $"INSERT INTO \"{tableName}\" ({columns2}) VALUES ({values})"; // Use double quotes for case-sensitive table name
-
                         cmd.CommandText = query;
                         cmd.ExecuteNonQuery();
                         dataToRemove.Add(data2);
@@ -726,6 +676,7 @@ public class ExcelService : IExcelService
             }
             catch (Exception ex)
             {
+                connection.Close();
                 var successdata = convertedDataList.Count - errorDataList.Count;
                 string errorMessages = "Server error";
                 string successMessage = " ";
@@ -749,15 +700,9 @@ public class ExcelService : IExcelService
                 string comma_separated_string = string.Join(",", columns.ToArray());
                 badRows.Insert(0, comma_separated_string);
                 var result = Createlog(tableName, badRows, fileName, successdata, errorMessages, successMessage);
-
             }
-
-
         }
-
     }
-
-
     public int GetEntityIdByEntityNamefromui(string entityName)
     {
         // Assuming you have a list of EntityListMetadataModel instances
@@ -776,68 +721,51 @@ public class ExcelService : IExcelService
         else
         {
             // Handle the case where the entity name is not found
-            throw new Exception("Entity not found");
+            throw new Exception("Entity not found");//return null
         }
     }
-
     public List<EntityListMetadataModel> GetEntityListMetadataModelforlist()
     {
-        {
-            
+        {           
             List<EntityListMetadataModel> entityListMetadataModels = _context.EntityListMetadataModels.ToList();
             return entityListMetadataModels;
         }
     }
-
     public int? GetEntityIdFromTemplate(IFormFile file)
     {
-
         using (var package = new ExcelPackage(file.OpenReadStream()))
         {
             ExcelWorksheet worksheet = package.Workbook.Worksheets[0]; // Assuming entity ID is in the first sheet
             int entityId;
-
             if (int.TryParse(worksheet.Cells[1, 1].Text, out entityId))
             {
                 return entityId;
             }
-
             return null; // Unable to parse the entity ID from the template
         }
     }
-
     public string GetPrimaryKeyColumnForEntity(string entityName)
     {
         var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
-
         if (entity == null)
         {
             // Entity not found, return null or throw an exception
             return null;
         }
-
         var primaryKeyColumn = _context.EntityColumnListMetadataModels
             .Where(column => column.EntityId == entity.Id && column.ColumnPrimaryKey)
             .Select(column => column.EntityColumnName)
             .FirstOrDefault();
-
         return primaryKeyColumn;
     }
-
     public async Task<List<int>> GetAllIdsFromDynamicTable(string tableName)
     {
         string primaryKeyColumn = GetPrimaryKeyColumnForEntity(tableName);
-        //if (string.IsNullOrEmpty(primaryKeyColumn))
-        //{
-
-        //    return new List<int>();
-        //}
         try
         {
             // Use Dapper to execute a parameterized query to fetch IDs
             string query = $"SELECT \"{primaryKeyColumn}\" FROM public.\"{tableName}\";";
             var ids = await _dbConnection.QueryAsync<int>(query);
-
             return ids.ToList();
         }
         catch (Exception ex)
@@ -845,7 +773,6 @@ public class ExcelService : IExcelService
             throw new Exception("Error fetching IDs from the specified table.", ex);
         }
     }
-
     public bool TableExists(string tableName)
     {
         try
@@ -853,7 +780,6 @@ public class ExcelService : IExcelService
             // Use Dapper to execute a parameterized query to check if the table exists
             string query = "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = @TableName)";
             bool tableExists = _dbConnection.QueryFirstOrDefault<bool>(query, new { TableName = tableName });
-
             return tableExists;
         }
         catch (Exception ex)
@@ -861,8 +787,6 @@ public class ExcelService : IExcelService
             throw new Exception("Error checking table existence in the specified database.", ex);
         }
     }
-
-
 }
 
 
