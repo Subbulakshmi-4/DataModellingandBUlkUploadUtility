@@ -10,6 +10,10 @@ using DMU_Git.Models;
 using Dapper;
 using System.Text;
 using System.Drawing;
+
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Buffers;
+using Microsoft.IdentityModel.Tokens;
 public class ExcelService : IExcelService
 {
     private readonly ApplicationDbContext _context;
@@ -29,22 +33,21 @@ public class ExcelService : IExcelService
         // Set protection options for the first sheet (read-only)
         worksheet.Protect("your_password", SheetProtectionType.All);
         worksheet.Protect("your_password", SheetProtectionType.None);
-
-
-
         // Add column headers for the first sheet
-
         worksheet.Range["A2"].Text = "SI.No";
         worksheet.Range["B2"].Text = "Data Item";
         worksheet.Range["C2"].Text = "Data Type";
         worksheet.Range["D2"].Text = "Length";
-        worksheet.Range["E2"].Text = "Description";
-        worksheet.Range["F2"].Text = "Blank Not Allowed";
-        worksheet.Range["G2"].Text = "Default Value";
-        worksheet.Range["H2"].Text = "Unique Value";
-        worksheet.Range["I2"].Text = "Option1";
-        worksheet.Range["J2"].Text = "Option2";
-
+        worksheet.Range["E2"].Text = "MinLength";
+        worksheet.Range["F2"].Text = "MaxLength";
+        worksheet.Range["G2"].Text = "DateMinValue";
+        worksheet.Range["H2"].Text = "DateMaxValue";
+        worksheet.Range["I2"].Text = "Description";
+        worksheet.Range["J2"].Text = "Blank Not Allowed";
+        worksheet.Range["K2"].Text = "Default Value";
+        worksheet.Range["L2"].Text = "Unique Value";
+        worksheet.Range["M2"].Text = "Option1";
+        worksheet.Range["N2"].Text = "Option2";
         // Populate the first sheet with column details
         for (int i = 0; i < columns.Count; i++)
         {
@@ -53,26 +56,55 @@ public class ExcelService : IExcelService
             worksheet.Range[i + 3, 2].Text = column.EntityColumnName;
             worksheet.Range[i + 3, 3].Text = column.Datatype;
             worksheet.Range[i + 3, 4].Text = string.IsNullOrEmpty(column.Length.ToString()) || column.Length.ToString() == "0".ToString() ? string.Empty : column.Length.ToString();
-            worksheet.Range[i + 3, 5].Text = column.Description;
-            worksheet.Range[i + 3, 6].Text = column.IsNullable.ToString();
+            if (column.MinLength == null || column.MinLength == 0)
+            {
+                worksheet.Range[i + 3, 5].Text = string.Empty;
+            }
+            else
+            {
+                worksheet.Range[i + 3, 5].Text = column.MinLength.ToString();
+            }
+
+            if (column.MaxLength == 0)
+            {
+                worksheet.Range[i + 3, 6].Text = string.Empty;
+            }
+            else
+            {
+                worksheet.Range[i + 3, 6].Text = column.MaxLength.ToString();
+            }
+
+            if (string.IsNullOrEmpty(column.DateMinValue) && string.IsNullOrEmpty(column.DateMaxValue))
+            {
+                worksheet.Range[i + 3, 7].Text = string.Empty;
+                worksheet.Range[i + 3, 8].Text = string.Empty;
+            }
+            else
+            {
+                worksheet.Range[i + 3, 7].Text = column.DateMinValue;
+                worksheet.Range[i + 3, 8].Text = column.DateMaxValue;
+            }
+            worksheet.Range[i + 3, 8].Text = column.DateMaxValue.ToString();
+            worksheet.Range[i + 3, 9].Text = column.Description;
+            worksheet.Range[i + 3, 10].Text = column.IsNullable.ToString();
             if (column.Datatype.ToLower() == "boolean")
             {
                 if (column.DefaultValue.ToLower() == "true")
                 {
-                    worksheet.Range[i + 3, 7].Text = column.True;
+                    worksheet.Range[i + 3, 10].Text = column.True;
                 }
                 else if (column.DefaultValue.ToLower() == "false")
                 {
-                    worksheet.Range[i + 3, 7].Text = column.False;
+                    worksheet.Range[i + 3, 10].Text = column.False;                                                                                                                                                                                                                                                                             
                 }
             }
             else
             {
-                worksheet.Range[i + 3, 7].Text = column.DefaultValue.ToString();
+                worksheet.Range[i + 3, 10].Text = column.DefaultValue.ToString();
             }
-            worksheet.Range[i + 3, 8].Text = column.ColumnPrimaryKey.ToString();
-            worksheet.Range[i + 3, 9].Text = column.True.ToString();
-            worksheet.Range[i + 3, 10].Text = column.False.ToString();
+            worksheet.Range[i + 3, 11].Text = column.ColumnPrimaryKey.ToString();
+            worksheet.Range[i + 3, 12].Text = column.True.ToString();
+            worksheet.Range[i + 3, 13].Text = column.False.ToString();
             int entityId = GetEntityIdByEntityName(column.entityname);
             worksheet.Range["A1"].Text = entityId.ToString();
         }
@@ -132,137 +164,224 @@ public class ExcelService : IExcelService
     }
     private void AddDataValidation(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns)
     {
-
         int startRow = 2; // The first row where you want validation
         int endRow = 100000;  // Adjust the last row as needed
         int columnCount = columnNamesWorksheet.Columns.Length;
-
         char letter = 'A';
         char lastletter = 'A';
-
         // Protect the worksheet with a password
         columnNamesWorksheet.Protect("password");
-
         for (int i = 2; i <= columnCount; i++)
         {
             lastletter++;
         }
-
         for (int col = 1; col <= columnCount; col++)
         {
             // Get the data type for the current column
             string dataType = columns[col - 1].Datatype;
-
             int length = columns[col - 1].Length;
-
             bool isPrimaryKey = columns[col - 1].ColumnPrimaryKey;
-
             string truevalue = columns[col - 1].True;
-
             string falsevalue = columns[col - 1].False;
-
-            bool notNull = columns[col - 1].IsNullable;
+            bool isNullable = columns[col - 1].IsNullable;
+            int? nullableMinLength = columns[col - 1].MinLength;
+            int? nullableMaxLength = columns[col - 1].MaxLength;
+            int minLength = nullableMinLength.HasValue ? nullableMinLength.Value : 0; // Use 0 as a default value when MinLength is null
+            int maxLength = nullableMaxLength.HasValue ? nullableMaxLength.Value : 0; // Use 0 as a default value when MaxLength is null
+            string dateMinValue = columns[col - 1].DateMinValue;
+            string dateMaxValue = columns[col - 1].DateMaxValue;
             // Specify the range for data validation
             CellRange range = columnNamesWorksheet.Range[startRow, col, endRow, col];
             Validation validation = range.DataValidation;
-
-            
             //Protect the worksheet with password
             columnNamesWorksheet.Protect("123456", SheetProtectionType.All);
 
             if (dataType.Equals("string", StringComparison.OrdinalIgnoreCase))
             {
-                // Text validation
+                // Text validation with min and max length
                 validation.CompareOperator = ValidationComparisonOperator.Between;
-                if (length > 0)
+                if ((minLength == 0) && (maxLength == 0))
                 {
-                    validation.Formula1 = "1";
-                    validation.Formula2 = length.ToString(); // Adjust the maximum text length as needed
+                    // Handle the case when both minimum and maximum length are 0
+                    validation.Formula1 = "0";
+                    validation.Formula2 = "0";
+                }
+                else if((!string.IsNullOrEmpty(minLength.ToString()) || minLength == 0) && (string.IsNullOrEmpty(maxLength.ToString()) || maxLength == 0))
+                {
+                    // Minimum length provided, no maximum length
+                    validation.Formula1 = minLength.ToString();
                     validation.AllowType = CellDataType.TextLength;
                     validation.InputTitle = "Input Data";
-                    validation.InputMessage = $"Type text with a length between 1 and {length} characters.";
+                    validation.InputMessage = $"Enter a value with a minimum length of {validation.Formula1} characters.";
                     validation.ErrorTitle = "Error";
-                    if (isPrimaryKey)
-                    {
-                        validation.CompareOperator = ValidationComparisonOperator.Between;
-                        validation.Formula1 = "1";  // Minimum length
-                        validation.Formula2 = length.ToString(); // Maximum length
-                        HighlightDuplicates(columnNamesWorksheet, col, startRow, endRow);
-                        validation.InputTitle = "Input Data";
-                        validation.InputMessage = "The value must be a unique string with a length between 1 and " + length + " characters.";
-                        validation.ErrorTitle = "Error";
-                        validation.ErrorMessage = "Values must be unique";
-                    }
+                    validation.ErrorMessage = $"The value must have a minimum length of {validation.Formula1} characters.";
+                }
+                else if ((string.IsNullOrEmpty(minLength.ToString()) || minLength == 0) && (!string.IsNullOrEmpty(maxLength.ToString()) || maxLength == 0))
+                {
+                    validation.Formula2 = maxLength.ToString();
+                    validation.AllowType = CellDataType.TextLength;
+                    validation.InputTitle = "Input Data";
+                    validation.InputMessage = $"Type text with a maximum length of {validation.Formula2} characters.";
+                    validation.ErrorTitle = "Error";
+                    validation.ErrorMessage = "The entered value exceeds the allowed length.";
                 }
                 else
                 {
-                    // Skip length validation for length == 0
-                    validation.Formula1 = "0"; // Set a minimum text length of 0
-                    validation.Formula2 = "10000000";// Set a minimum text length of 1
+                    // Both minimum and maximum length provided
+                    validation.Formula1 = minLength.ToString();
+                    validation.Formula2 = maxLength.ToString();
                     validation.AllowType = CellDataType.TextLength;
                     validation.InputTitle = "Input Data";
-                    validation.InputMessage = "Enter the string";
+                    validation.InputMessage = $"Type text with a length between {validation.Formula1} and {validation.Formula2} characters.";
                     validation.ErrorTitle = "Error";
-                    validation.ErrorMessage = "Entered value exceeds the length";
-
+                    validation.ErrorMessage = "Entered value should be within the specified length range.";
                 }
-            }
-            if (dataType.Equals("int", StringComparison.OrdinalIgnoreCase))
-            {
-                validation.CompareOperator = ValidationComparisonOperator.Between;
-                validation.Formula1 = "0"; // Minimum value (adjust as needed)
-                validation.Formula2 = "1000000"; // Maximum value (adjust as needed)
-                validation.AllowType = CellDataType.Integer;
-                validation.InputTitle = "Input Data";
-                validation.InputMessage = "Type an integer between 0 and 1,000,000 in this cell.";
-                validation.ErrorTitle = "Error";
-                validation.ErrorMessage = "Enter a valid integer between 0 and 1,000,000.";
-
+                if (isNullable == true)
+                {
+                    validation.CompareOperator = ValidationComparisonOperator.NotEqual;
+                    validation.Formula1 = "";
+                    validation.InputTitle = "Input Data";
+                    validation.InputMessage = "This field is mandatory and must not be empty.";
+                    validation.ErrorTitle = "Error";
+                    validation.ErrorMessage = "This field is mandatory and must not be empty.";
+                }
                 if (isPrimaryKey)
                 {
-                    validation.CompareOperator = ValidationComparisonOperator.Between;
-                    validation.Formula1 = "0"; // Minimum value for primary key
-                    validation.Formula2 = "1000000"; // Maximum value for primary key
                     HighlightDuplicates(columnNamesWorksheet, col, startRow, endRow);
-                    validation.InputTitle = "Input Data";
-                    validation.InputMessage = "The value must be a unique integer between 0 and 1,000,000.";
+                    validation.InputMessage = $"Enter the unique value.";
                     validation.ErrorTitle = "Error";
-                    validation.ErrorMessage = "Values must be unique integers within the specified range.";
+                    validation.ErrorMessage = "Entered Values must be unique";
                 }
             }
-
+            else if (dataType.Equals("int", StringComparison.OrdinalIgnoreCase))
+            {
+                validation.CompareOperator = ValidationComparisonOperator.Between;
+                if ((minLength == 0) && (maxLength == 0))
+                {
+                    // Handle the case when both minimum and maximum length are 0
+                    validation.Formula1 = "0";
+                    validation.Formula2 = "0";
+                }
+                if ((!string.IsNullOrEmpty(minLength.ToString()) || minLength == 0) && (string.IsNullOrEmpty(maxLength.ToString()) || maxLength == 0))
+                {
+                    // Minimum value provided, no maximum value
+                    validation.Formula1 = minLength.ToString();
+                    validation.AllowType = CellDataType.Integer;
+                    validation.InputTitle = "Input Data";
+                    validation.InputMessage = $"Enter a value with a minimum value of {validation.Formula1}.";
+                    validation.ErrorTitle = "Error";
+                    validation.ErrorMessage = $"The value must be at least {validation.Formula1}.";
+                }
+                else if ((string.IsNullOrEmpty(minLength.ToString()) || minLength == 0) && (!string.IsNullOrEmpty(maxLength.ToString()) || maxLength == 0))
+                {
+                    validation.Formula2 = maxLength.ToString();
+                    validation.AllowType = CellDataType.Integer;
+                    validation.InputTitle = "Input Data";
+                    validation.InputMessage = $"Enter an integer value less than or equal to {validation.Formula2}.";
+                    validation.ErrorTitle = "Error";
+                    validation.ErrorMessage = "The entered value exceeds the allowed range.";
+                }
+                else
+                {
+                    // Both minimum and maximum values provided
+                    validation.Formula1 = minLength.ToString();
+                    validation.Formula2 = maxLength.ToString();
+                    validation.AllowType = CellDataType.Integer;
+                    validation.InputTitle = "Input Data";
+                    validation.InputMessage = $"Enter an integer between {validation.Formula1} and {validation.Formula2}.";
+                    validation.ErrorTitle = "Error";
+                    validation.ErrorMessage = "The value should be within the specified range.";
+                }
+                if (isNullable == true)
+                {
+                    validation.CompareOperator = ValidationComparisonOperator.NotEqual;
+                    validation.Formula1 = "0";
+                    validation.InputTitle = "Input Data";
+                    validation.InputMessage = "This field is mandatory and must not be empty.";
+                    validation.ErrorTitle = "Error";
+                    validation.ErrorMessage = "This field is mandatory and must not be empty.";
+                }
+                if (isPrimaryKey)
+                {
+                    HighlightDuplicates(columnNamesWorksheet, col, startRow, endRow);
+                    validation.InputMessage = $"Enter the unique value.";
+                    validation.ErrorTitle = "Error";
+                    validation.ErrorMessage = "Entered Values must be unique";
+                }
+            }
             else if (dataType.Equals("Date", StringComparison.OrdinalIgnoreCase))
             {
                 // Date validation
                 validation.CompareOperator = ValidationComparisonOperator.Between;
-                validation.Formula1 = "01/01/1900";  // Adjust the minimum date as needed
-                validation.Formula2 = "12/12/2023";  // Adjust the maximum date as needed
+
+                if (string.IsNullOrEmpty(dateMinValue) && string.IsNullOrEmpty(dateMaxValue))
+                {
+                    // No minimum and maximum date values provided
+                    validation.Formula1 = "1757-01-01";
+                    validation.Formula2 = "9999-01-01";
+                }
+                else if (!string.IsNullOrEmpty(dateMinValue) && string.IsNullOrEmpty(dateMaxValue))
+                {
+                    // Minimum date value provided, no maximum date value
+                    validation.Formula1 = dateMinValue;
+                    validation.Formula2 = "9999-01-01";
+                }
+                else if (string.IsNullOrEmpty(dateMinValue) && !string.IsNullOrEmpty(dateMaxValue))
+                {
+                    // No minimum date value, maximum date value provided
+                    validation.Formula1 = "1757-01-01";
+                    validation.Formula2 = dateMaxValue;
+                }
+                else
+                {
+                    // Both minimum and maximum date values provided
+                    validation.Formula1 = dateMinValue;
+                    validation.Formula2 = dateMaxValue;
+                }
+
                 validation.AllowType = CellDataType.Date;
                 validation.InputTitle = "Input Data";
-                validation.InputMessage = "Type a date between 01/01/1900 and 12/12/2023 in this cell.";
+                validation.InputMessage = $"Type a date between {validation.Formula1} and {validation.Formula2} in this cell.";
                 validation.ErrorTitle = "Error";
-                validation.ErrorMessage = "Enter a valid date";
+                validation.ErrorMessage = "Enter a valid date with correct format (yyyy-MM-dd).";
+
+                // Ensure the date format is not avoided
+                var cellRange = range.Worksheet.Range[range.Row, range.Column];
+                cellRange.NumberFormat = "yyyy-MM-dd";
             }
             else if (dataType.Equals("boolean", StringComparison.OrdinalIgnoreCase))
             {
-                // Data validation formula for "TRUE" or "FALSE"
-                validation.Values = new string[] { truevalue, falsevalue };
-                validation.ErrorTitle = "Error";
-                validation.InputTitle = "Input Data";
-                validation.ErrorMessage = "Select values from dropdown";
-                validation.InputMessage = "Select values from dropdown";
+                if (string.IsNullOrEmpty(truevalue) && string.IsNullOrEmpty(falsevalue))
+                {
+                    // No specific values provided, allow "true" and "false"
+                    validation.Values = new string[] { "true", "false" };
+                    validation.ErrorTitle = "Error";
+                    validation.InputTitle = "Input Data";
+                    validation.ErrorMessage = "Select values from dropdown";
+                    validation.InputMessage = "Select values from dropdown";
+                }
+                else
+                {
+                    // Specific values provided, enforce dropdown validation
+                    validation.Values = new string[] { truevalue, falsevalue };
+                    validation.ErrorTitle = "Error";
+                    validation.InputTitle = "Input Data";
+                    validation.ErrorMessage = "Select values from dropdown";
+                    validation.InputMessage = "Select values from dropdown";
+                }
             }
             else if (dataType.Equals("timestamp", StringComparison.OrdinalIgnoreCase))
             {
-                // Date and time validation
-                validation.CompareOperator = ValidationComparisonOperator.Between;
+                validation.CompareOperator = ValidationComparisonOperator.Between; // You can use any operator here.
                 validation.Formula1 = "01/01/1900";
-                validation.Formula2 = "12/31/9999"; // Adjust the range as needed
+                validation.Formula2 = "12/31/9999"; // Use dummy values since you're not restricting the range
                 validation.AllowType = CellDataType.Date;
                 validation.InputTitle = "Input Data";
-                validation.InputMessage = "Type a date and time in the specified format.";
+                validation.InputMessage = "Type a date and time in the specified format(mm/dd/yyyy hh:mm AM/PM)";
                 validation.ErrorTitle = "Error";
                 validation.ErrorMessage = "Enter a valid date and time.";
+                var cellRange = range.Worksheet.Range[range.Row, range.Column];
+                cellRange.NumberFormat = "mm/dd/yyyy hh:mm AM/PM"; //
             }
             else if (dataType.Equals("char", StringComparison.OrdinalIgnoreCase))
             {
@@ -276,7 +395,6 @@ public class ExcelService : IExcelService
                 validation.ErrorTitle = "Error";
                 validation.ErrorMessage = "Enter a valid character.";
             }
-
             else if (dataType.Equals("bytea", StringComparison.OrdinalIgnoreCase))
             {
                 // Byte validation
@@ -289,19 +407,14 @@ public class ExcelService : IExcelService
                 validation.InputMessage = "Type a byte array with a length between 1 and 1000000 characters.";
                 validation.ErrorTitle = "Error";
                 validation.ErrorMessage = "Invalid byte array length";
-
                 // Include byte validation
                 bool isValidByteA = IsValidByteA(columns[col - 1].DefaultValue, 1, 1000000); // Modify the length limits as needed
-
                 if (!isValidByteA)
                 {
                     // Data does not meet byte validation criteria
                     validation.ErrorMessage = "Invalid byte array format or length.";
                 }
             }
-
-
-            // Add more conditions for other data types as needed
         }
         for (int i = 2; i <= 65537; i++)
         {
@@ -315,14 +428,12 @@ public class ExcelService : IExcelService
     {
         int dividend = columnNumber;
         string columnName = string.Empty;
-
         while (dividend > 0)
         {
             int modulo = (dividend - 1) % 26;
             columnName = Convert.ToChar(65 + modulo) + columnName;
             dividend = (dividend - modulo) / 26;
         }
-
         return columnName;
     }
     private int GetEntityIdByEntityName(string entityName)
@@ -335,8 +446,6 @@ public class ExcelService : IExcelService
             .Where(model => model.EntityName == entityName)
             .Select(model => model.Id)
             .FirstOrDefault();
-
-
         if (entityId != 0) // Check if a valid entity Id was found
         {
             return entityId;
