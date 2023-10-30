@@ -137,8 +137,6 @@ public class ExcelService : IExcelService
             var column = columns[i];
             columnNamesWorksheet.Range[1, i + 1].Text = column.EntityColumnName;
         }
-       
-
         string[] sheetsToRemove = { "Sheet2", "Sheet3"}; // Names of sheets to be removed
         foreach (var sheetName in sheetsToRemove)
         {
@@ -188,6 +186,8 @@ public class ExcelService : IExcelService
             string truevalue = columns[col - 1].True;
             string falsevalue = columns[col - 1].False;
             bool isNullable = columns[col - 1].IsNullable;
+            int? minRange = columns[col - 1].MinRange;
+            int? maxRange = columns[col - 1].MaxRange;
             int? nullableMinLength = columns[col - 1].MinLength;
             int? nullableMaxLength = columns[col - 1].MaxLength;
             int minLength = nullableMinLength.HasValue ? nullableMinLength.Value : 0; // Use 0 as a default value when MinLength is null
@@ -279,8 +279,8 @@ public class ExcelService : IExcelService
                 else
                 {
                     // Both minimum and maximum values provided
-                    validation.Formula1 = minLength.ToString();
-                    validation.Formula2 = maxLength.ToString();
+                    validation.Formula1 = minRange.ToString();
+                    validation.Formula2 = maxRange.ToString();
                     validation.AllowType = CellDataType.Integer;
                     validation.InputTitle = "Input Data";
                     validation.InputMessage = $"Enter an integer between {validation.Formula1} and {validation.Formula2}.";
