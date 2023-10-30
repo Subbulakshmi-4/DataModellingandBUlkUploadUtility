@@ -87,6 +87,8 @@ namespace DMU_Git.Services
                     Length = column.Length,
                     MinLength = column.MinLength,
                     MaxLength = column.MaxLength,
+                    MinRange = column.MinRange,
+                    MaxRange = column.MaxRange,
                     DateMinValue = column.DateMinValue,
                     DateMaxValue = column.DateMaxValue,
                     Description = column.Description,
