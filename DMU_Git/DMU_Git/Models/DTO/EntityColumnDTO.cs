@@ -14,6 +14,8 @@ namespace DMU_Git.Models.DTO
         public int Length { get; set; }
         public int? MinLength { set; get; }
         public int? MaxLength { set; get; }
+        public int? MaxRange { set; get; }
+        public int? MinRange { set; get; }
         public string DateMinValue { set; get; }
         public string DateMaxValue { set; get; }
         public string Description { get; set; } // New property
@@ -34,6 +36,8 @@ namespace DMU_Git.Models.DTO
                 Length = data.Length,
                 MinLength = data.MinLength,
                 MaxLength = data.MaxLength,
+                MinRange = data.MinRange,
+                MaxRange = data.MaxRange,
                 DateMinValue = data.DateMinValue,
                 DateMaxValue = data.DateMaxValue,
                 Description = data.Description, // Map the Description property
@@ -56,6 +60,8 @@ namespace DMU_Git.Models.DTO
                 Length = data.Length,
                 MinLength = data.MinLength,
                 MaxLength = data.MaxLength,
+                MinRange = data.MinRange,
+                MaxRange = data.MaxRange,
                 DateMinValue = data.DateMinValue,
                 DateMaxValue = data.DateMaxValue,
                 Description = data.Description, // Map the Description property
