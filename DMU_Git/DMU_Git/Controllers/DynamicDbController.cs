@@ -96,6 +96,8 @@ namespace DMU_Git.Controllers
                     Length = columnDto.Length,
                    MinLength = columnDto.MinLength,
                    MaxLength = columnDto.MaxLength,
+                   MaxRange = columnDto.MaxRange,
+                   MinRange = columnDto.MinRange,
                     DateMaxValue = columnDto.DateMaxValue,
                     DateMinValue = columnDto.DateMinValue,
                     Description = columnDto.Description,
