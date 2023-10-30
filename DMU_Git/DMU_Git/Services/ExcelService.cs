@@ -91,20 +91,20 @@ public class ExcelService : IExcelService
             {
                 if (column.DefaultValue.ToLower() == "true")
                 {
-                    worksheet.Range[i + 3, 10].Text = column.True;
+                    worksheet.Range[i + 3, 11].Text = column.True;
                 }
                 else if (column.DefaultValue.ToLower() == "false")
                 {
-                    worksheet.Range[i + 3, 10].Text = column.False;                                                                                                                                                                                                                                                                             
+                    worksheet.Range[i + 3, 11].Text = column.False;                                                                                                                                                                                                                                                                             
                 }
             }
             else
             {
-                worksheet.Range[i + 3, 10].Text = column.DefaultValue.ToString();
+                worksheet.Range[i + 3, 11].Text = column.DefaultValue.ToString();
             }
-            worksheet.Range[i + 3, 11].Text = column.ColumnPrimaryKey.ToString();
-            worksheet.Range[i + 3, 12].Text = column.True.ToString();
-            worksheet.Range[i + 3, 13].Text = column.False.ToString();
+            worksheet.Range[i + 3, 12].Text = column.ColumnPrimaryKey.ToString();
+            worksheet.Range[i + 3, 13].Text = column.True.ToString();
+            worksheet.Range[i + 3, 14].Text = column.False.ToString();
             int entityId = GetEntityIdByEntityName(column.entityname);
             worksheet.Range["A1"].Text = entityId.ToString();
         }
@@ -125,7 +125,11 @@ public class ExcelService : IExcelService
         staticContentRange.Style.KnownColor = ExcelColors.Yellow;
         // Add the second worksheet for column names
         Worksheet columnNamesWorksheet = workbook.Worksheets.Add("Fill data");
+        // After adding content to the columns
+        //columnNamesWorksheet.AllocatedRange.AutoFitColumns();
 
+        // Set a default column width for the "Fill data" worksheet
+        columnNamesWorksheet.DefaultColumnWidth = 15; // Set the width in characters (adjust as needed)
 
         // Add column names as headers horizontally in the second sheet
         for (int i = 0; i < columns.Count; i++)
@@ -236,15 +240,6 @@ public class ExcelService : IExcelService
                     validation.ErrorTitle = "Error";
                     validation.ErrorMessage = "Entered value should be within the specified length range.";
                 }
-                if (isNullable == true)
-                {
-                    validation.CompareOperator = ValidationComparisonOperator.NotEqual;
-                    validation.Formula1 = "";
-                    validation.InputTitle = "Input Data";
-                    validation.InputMessage = "This field is mandatory and must not be empty.";
-                    validation.ErrorTitle = "Error";
-                    validation.ErrorMessage = "This field is mandatory and must not be empty.";
-                }
                 if (isPrimaryKey)
                 {
                     HighlightDuplicates(columnNamesWorksheet, col, startRow, endRow);
@@ -292,21 +287,9 @@ public class ExcelService : IExcelService
                     validation.ErrorTitle = "Error";
                     validation.ErrorMessage = "The value should be within the specified range.";
                 }
-                if (isNullable == true)
-                {
-                    validation.CompareOperator = ValidationComparisonOperator.NotEqual;
-                    validation.Formula1 = "0";
-                    validation.InputTitle = "Input Data";
-                    validation.InputMessage = "This field is mandatory and must not be empty.";
-                    validation.ErrorTitle = "Error";
-                    validation.ErrorMessage = "This field is mandatory and must not be empty.";
-                }
                 if (isPrimaryKey)
                 {
                     HighlightDuplicates(columnNamesWorksheet, col, startRow, endRow);
-                    validation.InputMessage = $"Enter the unique value.";
-                    validation.ErrorTitle = "Error";
-                    validation.ErrorMessage = "Entered Values must be unique";
                 }
             }
             else if (dataType.Equals("Date", StringComparison.OrdinalIgnoreCase))
