@@ -10,20 +10,25 @@ using DMU_Git.Models;
 using Dapper;
 using System.Text;
 using System.Drawing;
-
+using DMU_Git.Services;
+using Azure;
+using Microsoft.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Buffers;
 using Microsoft.IdentityModel.Tokens;
+
 public class ExcelService : IExcelService
 {
     private readonly ApplicationDbContext _context;
     private readonly IDbConnection _dbConnection;
-    public ExcelService(ApplicationDbContext context, IDbConnection dbConnection)
+    private readonly ExportExcelService _exportExcelService;
+    public ExcelService(ApplicationDbContext context, IDbConnection dbConnection, ExportExcelService exportExcelService)
     {
         _context = context;
         _dbConnection = dbConnection;
+        _exportExcelService = exportExcelService;
     }
-    public byte[] GenerateExcelFile(List<EntityColumnDTO> columns)
+    public byte[] GenerateExcelFile(List<EntityColumnDTO> columns, int? parentId)
     {
         Workbook workbook = new Workbook();
         Worksheet worksheet = workbook.Worksheets[0];
@@ -118,9 +123,11 @@ public class ExcelService : IExcelService
         worksheet.Range[lastRowIndex + 3, 1].Text = "1. Don't add or delete any columns";
         worksheet.Range[lastRowIndex + 4, 1].Text = "2. Don't add any extra sheets";
         worksheet.Range[lastRowIndex + 5, 1].Text = "3. Follow the length if mentioned";
-
-        // Apply yellow background color to the static content cells in the last row
-        var staticContentRange = worksheet.Range[lastRowIndex + 2, 1, lastRowIndex + 5, 5];
+        if (parentId.HasValue)
+        {
+            worksheet.Range[lastRowIndex + 6, 1].Text = "4. This is Exported Data ExcelFile";
+        }
+        var staticContentRange = worksheet.Range[lastRowIndex + 2, 1, lastRowIndex + 6, 5];
         staticContentRange.Style.FillPattern = ExcelPatternType.Solid;
         staticContentRange.Style.KnownColor = ExcelColors.Yellow;
         // Add the second worksheet for column names
@@ -131,12 +138,19 @@ public class ExcelService : IExcelService
         // Set a default column width for the "Fill data" worksheet
         columnNamesWorksheet.DefaultColumnWidth = 15; // Set the width in characters (adjust as needed)
 
-        // Add column names as headers horizontally in the second sheet
+
         for (int i = 0; i < columns.Count; i++)
         {
             var column = columns[i];
             columnNamesWorksheet.Range[1, i + 1].Text = column.EntityColumnName;
         }
+
+
+        if (parentId.HasValue)
+        {
+            InsertDataIntoExcel(columnNamesWorksheet, columns, parentId);
+        }
+
         string[] sheetsToRemove = { "Sheet2", "Sheet3"}; // Names of sheets to be removed
         foreach (var sheetName in sheetsToRemove)
         {
@@ -146,7 +160,15 @@ public class ExcelService : IExcelService
                 workbook.Worksheets.Remove(sheetToRemove);
             }
         }
-        AddDataValidation(columnNamesWorksheet, columns);
+        if (parentId.HasValue)
+        {
+            Console.WriteLine("Excel is not validation");
+        }
+        else
+        {
+            AddDataValidation(columnNamesWorksheet, columns);
+        }
+       
         
         using (MemoryStream memoryStream = new MemoryStream())
         {
@@ -154,9 +176,44 @@ public class ExcelService : IExcelService
             return memoryStream.ToArray();
         }
     }
+
+    private void InsertDataIntoExcel(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns, int? parentId)
+    {
+        var logChilds = _exportExcelService.GetLogChildsByParentIDAsync(parentId.Value).Result;
+        int rowIndex = 2; // Start from the second row because the first row contains headers
+        int errorMessageIndex = 0; // Declare and initialize errorMessageIndex here
+
+        foreach (var logChild in logChilds)
+        {
+            string[] rows = logChild.Filedata.Split(';');
+            string[] ErrorMassage = logChild.ErrorMessage.Split(";");
+
+            for (int i = 1; i < rows.Length; i++)
+            {
+                string cleanedRow = rows[i].Trim();
+                string[] values = cleanedRow.Split(',');
+
+                if (values.Length >= 0)
+                {
+                    for (int columnIndex = 0; columnIndex < values.Length; columnIndex++)
+                    {
+                        columnNamesWorksheet.Range[rowIndex, columnIndex + 1].Text = values[columnIndex];
+                    }
+
+                    if (errorMessageIndex < ErrorMassage.Length)
+                    {
+                        columnNamesWorksheet.Range[rowIndex, values.Length + 1].Text = ErrorMassage[errorMessageIndex];
+                        errorMessageIndex++;
+                    }
+
+                    rowIndex++;
+                }
+            }
+        }
+    }
+
     private void HighlightDuplicates(Worksheet sheet, int columnNumber, int startRow, int endRow)
     {
-        // Convert the column number to a column letter (e.g., 1 => "A", 2 => "B")
         string columnLetter = GetExcelColumnName(columnNumber);
 
         string range = $"{columnLetter}{startRow}:{columnLetter}{endRow}";
@@ -407,6 +464,12 @@ public class ExcelService : IExcelService
             lockrange.Style.Locked = false;
         }
     }
+
+
+
+
+
+
     private string GetExcelColumnName(int columnNumber)
     {
         int dividend = columnNumber;

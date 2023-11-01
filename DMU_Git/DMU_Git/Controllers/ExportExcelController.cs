@@ -15,8 +15,8 @@ namespace DMU_Git.Controllers
         {
             _exportExcelService = exportExcelService;
         }
-        [HttpGet("{parentID}")]
-        public async Task<IActionResult> ExportToExcel(int parentId, int entityId, [FromQuery] string entityName)
+        [HttpGet("{parentId}")]
+        public async Task<IActionResult> ExportToExcel(int parentId)
         {
             var logChilds = await _exportExcelService.GetLogChildsByParentIDAsync(parentId);
             if (logChilds.Any())
@@ -24,8 +24,6 @@ namespace DMU_Git.Controllers
                 using (var package = new ExcelPackage())
                 {
                     var worksheet = package.Workbook.Worksheets.Add("LogChildData");
-                    worksheet.Cells[1, 1].Value = entityId; 
-                    worksheet.Row(1).Hidden = true;
                     int row = 2; 
                     foreach (var logChild in logChilds)
                     {
@@ -49,7 +47,7 @@ namespace DMU_Git.Controllers
                     {
                         await package.SaveAsAsync(stream);
                         var content = stream.ToArray();
-                        var fileName = $"{entityName}_LogChildData.xlsx";
+                        var fileName = $"Testing_LogChildData.xlsx";
                         var contentDisposition = new ContentDispositionHeaderValue("attachment")
                         {
                             FileName = fileName
