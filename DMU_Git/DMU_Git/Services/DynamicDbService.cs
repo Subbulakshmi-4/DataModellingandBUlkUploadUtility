@@ -179,6 +179,8 @@ namespace DMU_Git.Services
                 }
                 hasColumns = true;
             }
+            createTableSql += hasColumns ? "," : "";
+            createTableSql += "\"createddate\" timestamp DEFAULT CURRENT_TIMESTAMP";
             createTableSql += ");";
             return createTableSql;
         }

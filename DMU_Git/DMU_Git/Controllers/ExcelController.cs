@@ -25,13 +25,13 @@ namespace DMU_Git.Controllers
         }
 
         [HttpPost("generate")]
-        public IActionResult GenerateExcelFile([FromBody] List<EntityColumnDTO> columns)
+        public IActionResult GenerateExcelFile([FromBody] List<EntityColumnDTO> columns,int? parentId)
         {
             try
             {
                 // Convert column names to lowercase
                 //var lowercaseColumns = columns.Select(col => new EntityColumnDTO { EntityColumnName = col.EntityColumnName.ToLower() }).ToList();
-                byte[] excelBytes = _excelService.GenerateExcelFile(columns);
+                byte[] excelBytes = _excelService.GenerateExcelFile(columns,parentId);
 
                 // Create a response for downloading the Excel file
                 var fileContentResult = new FileContentResult(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
