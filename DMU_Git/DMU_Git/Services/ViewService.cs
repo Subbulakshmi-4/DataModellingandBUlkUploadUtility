@@ -27,6 +27,7 @@ namespace DMU_Git.Services
                 .Select(column => new EntityColumnDTO
                 {
                     Id = column.Id,
+                    EntityId = entity.Id,
                     EntityColumnName = column.EntityColumnName,
                     Datatype = column.Datatype,
                     Length = column.Length,
