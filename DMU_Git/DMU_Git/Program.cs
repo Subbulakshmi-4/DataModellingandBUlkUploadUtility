@@ -29,6 +29,7 @@ builder.Services.AddCors(options =>
 });
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<DynamicDbService>();
+builder.Services.AddScoped<ExportExcelService>();
 builder.Services.AddScoped<ViewService>();
 builder.Services.AddScoped<IEntitylistService, EntitylistService>();
 builder.Services.AddScoped<IExcelService, ExcelService>();
