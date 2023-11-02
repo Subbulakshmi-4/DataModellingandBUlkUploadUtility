@@ -133,8 +133,9 @@ public class ExcelService : IExcelService
         if (parentId.HasValue)
         {
             worksheet.Range[lastRowIndex + 6, 1].Text = "4. This is Exported Data ExcelFile";
+            worksheet.Range[lastRowIndex + 7, 1].Text = "5. Before Upload the File remove the ErrorMassage";
         }
-        var staticContentRange = worksheet.Range[lastRowIndex + 2, 1, lastRowIndex + 6, 5];
+        var staticContentRange = worksheet.Range[lastRowIndex + 2, 1, lastRowIndex + 7, 5];
         staticContentRange.Style.FillPattern = ExcelPatternType.Solid;
         staticContentRange.Style.KnownColor = ExcelColors.Yellow;
         // Add the second worksheet for column names
@@ -142,10 +143,11 @@ public class ExcelService : IExcelService
 
         // After adding content to the columns
         //columnNamesWorksheet.AllocatedRange.AutoFitColumns();
-
         // Set a default column width for the "Fill data" worksheet
         columnNamesWorksheet.DefaultColumnWidth = 15; // Set the width in characters (adjust as needed)
+
         int lastColumnIndex = columns.Count + 1;
+
         for (int i = 0; i < columns.Count; i++)
         {
             var column = columns[i];
