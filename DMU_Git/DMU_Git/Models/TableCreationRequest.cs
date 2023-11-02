@@ -18,6 +18,9 @@
         public string DateMinValue { set; get; }
         public string DateMaxValue { set; get; }
         public string Description { get; set; }
+        public int ListEntityId { get; set; }
+        public int ListEntityKey { get; set; }
+        public int ListEntityValue { get; set; }
         public bool IsNullable { get; set; }
         public string True { get; set; }
         public string False { get; set; }
