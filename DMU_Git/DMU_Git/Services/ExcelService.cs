@@ -16,6 +16,7 @@ using Microsoft.Net.Http.Headers;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Buffers;
 using Microsoft.IdentityModel.Tokens;
+using static OfficeOpenXml.ExcelErrorValue;
 
 public class ExcelService : IExcelService
 {
@@ -32,6 +33,7 @@ public class ExcelService : IExcelService
     {
         Workbook workbook = new Workbook();
         Worksheet worksheet = workbook.Worksheets[0];
+        
         // Add the first worksheet with detailed column information
         worksheet.Name = "DataDictionary";
             
@@ -110,6 +112,11 @@ public class ExcelService : IExcelService
             worksheet.Range[i + 3, 12].Text = column.ColumnPrimaryKey.ToString();
             worksheet.Range[i + 3, 13].Text = column.True.ToString();
             worksheet.Range[i + 3, 14].Text = column.False.ToString();
+            var lastRowIndex1 = worksheet.Rows.Length;
+            worksheet.Range[lastRowIndex1 + 1, 1].Text = (i + 2).ToString();
+            worksheet.Range[lastRowIndex1 + 1, 1].Style.HorizontalAlignment = HorizontalAlignType.Right;
+            worksheet.Range[lastRowIndex1 + 1, 2].Text = "CurrentDate";
+            worksheet.Range[lastRowIndex1 + 1, 3].Text = "Date";
             int entityId = GetEntityIdByEntityName(column.entityname);
             worksheet.Range["A1"].Text = entityId.ToString();
         }
@@ -120,11 +127,11 @@ public class ExcelService : IExcelService
 
         // Add static content in the last row (vertically)
         var lastRowIndex = worksheet.Rows.Length;
-        worksheet.Range[lastRowIndex + 1, 1].Text = "";
-        worksheet.Range[lastRowIndex + 2, 1].Text = "Note:";
-        worksheet.Range[lastRowIndex + 3, 1].Text = "1. Don't add or delete any columns";
-        worksheet.Range[lastRowIndex + 4, 1].Text = "2. Don't add any extra sheets";
-        worksheet.Range[lastRowIndex + 5, 1].Text = "3. Follow the length if mentioned";
+        worksheet.Range[lastRowIndex + 2, 1].Text = "";
+        worksheet.Range[lastRowIndex + 3, 1].Text = "Note:";
+        worksheet.Range[lastRowIndex + 4, 1].Text = "1. Don't add or delete any columns";
+        worksheet.Range[lastRowIndex + 5, 1].Text = "2. Don't add any extra sheets";
+        worksheet.Range[lastRowIndex + 6, 1].Text = "3. Follow the length if mentioned";
         if (parentId.HasValue)
         {
             worksheet.Range[lastRowIndex + 6, 1].Text = "4. This is Exported Data ExcelFile";
@@ -135,16 +142,25 @@ public class ExcelService : IExcelService
         staticContentRange.Style.KnownColor = ExcelColors.Yellow;
         // Add the second worksheet for column names
         Worksheet columnNamesWorksheet = workbook.Worksheets.Add("Fill data");
+
         // After adding content to the columns
         //columnNamesWorksheet.AllocatedRange.AutoFitColumns();
         // Set a default column width for the "Fill data" worksheet
         columnNamesWorksheet.DefaultColumnWidth = 15; // Set the width in characters (adjust as needed)
+
+        int lastColumnIndex = columns.Count + 1;
+
         for (int i = 0; i < columns.Count; i++)
         {
             var column = columns[i];
-            columnNamesWorksheet.Range[1, i + 1].Text = column.EntityColumnName;
+            columnNamesWorksheet.Range[2, i + 1].Text = column.EntityColumnName;
+            int entityId = GetEntityIdByEntityName(column.entityname);
+            columnNamesWorksheet.Range["A1"].Text = entityId.ToString();
         }
 
+        columnNamesWorksheet.Range[2, lastColumnIndex].Text = "CurrentDate";
+
+        columnNamesWorksheet.HideRow(1);
 
         if (parentId.HasValue)
         {
@@ -168,8 +184,7 @@ public class ExcelService : IExcelService
         {
             AddDataValidation(columnNamesWorksheet, columns);
         }
-       
-        
+
         using (MemoryStream memoryStream = new MemoryStream())
         {
             workbook.SaveToStream(memoryStream, FileFormat.Version2013);
@@ -225,7 +240,7 @@ public class ExcelService : IExcelService
     {
         int startRow = 2; // The first row where you want validation
         int endRow = 100000;  // Adjust the last row as needed
-        int columnCount = columnNamesWorksheet.Columns.Length;
+        int columnCount = columnNamesWorksheet.Columns.Length - 1;
         char letter = 'A';
         char lastletter = 'A';
         // Protect the worksheet with a password
@@ -243,8 +258,10 @@ public class ExcelService : IExcelService
             string truevalue = columns[col - 1].True;
             string falsevalue = columns[col - 1].False;
             bool isNullable = columns[col - 1].IsNullable;
-            int? minRange = columns[col - 1].MinRange;
-            int? maxRange = columns[col - 1].MaxRange;
+            int? nullableMinRange = columns[col - 1].MinRange;
+            int? nullableMaxRange = columns[col - 1].MaxRange;
+            int minRange = nullableMinRange.HasValue ? nullableMinRange.Value : 0; // Use 0 as a default value when MinLength is null
+            int maxRange = nullableMaxRange.HasValue ? nullableMaxRange.Value : 0; // Use 0 as a default value when MaxLength is null
             int? nullableMinLength = columns[col - 1].MinLength;
             int? nullableMaxLength = columns[col - 1].MaxLength;
             int minLength = nullableMinLength.HasValue ? nullableMinLength.Value : 0; // Use 0 as a default value when MinLength is null
@@ -308,27 +325,83 @@ public class ExcelService : IExcelService
             else if (dataType.Equals("int", StringComparison.OrdinalIgnoreCase))
             {
                 validation.CompareOperator = ValidationComparisonOperator.Between;
-                if ((minLength == 0) && (maxLength == 0))
+                if (isPrimaryKey)
+                {
+                    HighlightDuplicates(columnNamesWorksheet, col, startRow, endRow);
+
+                    validation.CompareOperator = ValidationComparisonOperator.Between;
+                    if ((minRange == 0) && (maxRange == 0))
+                    {
+                        validation.Formula1 = "1";
+                        validation.Formula2 = int.MaxValue.ToString();
+                        validation.AllowType = CellDataType.Integer;
+                        validation.InputTitle = "Input Data";
+                        validation.InputMessage = "Enter an integer from 1 ";
+                        validation.ErrorTitle = "Error";
+                        validation.ErrorMessage = "The value should be an greater than or equal to 1 ";
+                    }
+                    else if ((!string.IsNullOrEmpty(minRange.ToString()) || minRange == 0) && (string.IsNullOrEmpty(maxRange.ToString()) || maxRange == 0))
+                    {
+                        // Minimum value provided, no maximum value
+                        validation.Formula1 = minRange.ToString();
+                        validation.Formula2 = int.MaxValue.ToString();
+                        validation.AllowType = CellDataType.Integer;
+                        validation.InputTitle = "Input Data";
+                        validation.InputMessage = $"Enter a value with a minimum value of {validation.Formula1}.";
+                        validation.ErrorTitle = "Error";
+                        validation.ErrorMessage = $"The value must be at least {validation.Formula1}.";
+                    }
+                    else if ((string.IsNullOrEmpty(minRange.ToString()) || minRange == 0) && (!string.IsNullOrEmpty(maxRange.ToString()) || maxRange == 0))
+                    {
+                        validation.Formula1 = "1";
+                        validation.Formula2 = maxRange.ToString();
+                        validation.AllowType = CellDataType.Integer;
+                        validation.InputTitle = "Input Data";
+                        validation.InputMessage = $"Enter an integer value between 1 to {validation.Formula2}.";
+                        validation.ErrorTitle = "Error";
+                        validation.ErrorMessage = "The entered value exceeds the allowed range.";
+                    }
+                    else
+                    {
+                        // Both minimum and maximum values provided
+                        validation.Formula1 = minRange.ToString();
+                        validation.Formula2 = maxRange.ToString();
+                        validation.AllowType = CellDataType.Integer;
+                        validation.InputTitle = "Input Data";
+                        validation.InputMessage = $"Enter an integer between {validation.Formula1} and {validation.Formula2}.";
+                        validation.ErrorTitle = "Error";
+                        validation.ErrorMessage = "The value should be within the specified range.";
+                    }
+                }
+                else if ((minRange == 0) && (maxRange == 0))
                 {
                     // Handle the case when both minimum and maximum length are 0
-                    validation.Formula1 = "0";
-                    validation.Formula2 = "0";
+                    validation.CompareOperator = ValidationComparisonOperator.Between;
+                    validation.Formula1 = int.MinValue.ToString(); 
+                    validation.Formula2 = int.MaxValue.ToString(); 
+                    validation.AllowType = CellDataType.Integer;
+                    validation.InputTitle = "Input Data";
+                    validation.InputMessage = "Enter an integer.";
+                    validation.ErrorTitle = "Error";
+                    validation.ErrorMessage = "The value should be an integer ";
                 }
-                if ((!string.IsNullOrEmpty(minLength.ToString()) || minLength == 0) && (string.IsNullOrEmpty(maxLength.ToString()) || maxLength == 0))
+                else if ((!string.IsNullOrEmpty(minRange.ToString()) || minRange == 0) && (string.IsNullOrEmpty(maxRange.ToString()) || maxRange == 0))
                 {
                     // Minimum value provided, no maximum value
-                    validation.Formula1 = minLength.ToString();
+                    validation.Formula1 = minRange.ToString();
+                    validation.Formula2 = int.MaxValue.ToString();
                     validation.AllowType = CellDataType.Integer;
                     validation.InputTitle = "Input Data";
                     validation.InputMessage = $"Enter a value with a minimum value of {validation.Formula1}.";
                     validation.ErrorTitle = "Error";
                     validation.ErrorMessage = $"The value must be at least {validation.Formula1}.";
                 }
-                else if ((string.IsNullOrEmpty(minLength.ToString()) || minLength == 0) && (!string.IsNullOrEmpty(maxLength.ToString()) || maxLength == 0))
+                else if ((string.IsNullOrEmpty(minRange.ToString()) || minRange == 0) && (!string.IsNullOrEmpty(maxRange.ToString()) || maxRange == 0))
                 {
-                    validation.Formula2 = maxLength.ToString();
+                    validation.Formula1 = int.MinValue.ToString();
+                    validation.Formula2 = maxRange.ToString();
                     validation.AllowType = CellDataType.Integer;
-                    validation.InputTitle = "Input Data";
+                    validation.InputTitle = "Input Data";   
                     validation.InputMessage = $"Enter an integer value less than or equal to {validation.Formula2}.";
                     validation.ErrorTitle = "Error";
                     validation.ErrorMessage = "The entered value exceeds the allowed range.";
@@ -344,10 +417,7 @@ public class ExcelService : IExcelService
                     validation.ErrorTitle = "Error";
                     validation.ErrorMessage = "The value should be within the specified range.";
                 }
-                if (isPrimaryKey)
-                {
-                    HighlightDuplicates(columnNamesWorksheet, col, startRow, endRow);
-                }
+                
             }
             else if (dataType.Equals("Date", StringComparison.OrdinalIgnoreCase))
             {
@@ -456,7 +526,7 @@ public class ExcelService : IExcelService
                 }
             }
         }
-        for (int i = 2; i <= 65537; i++)
+        for (int i = 3; i <= 65537; i++)
         {
             string startindex = letter + i.ToString();
             string endindex = lastletter + i.ToString();
@@ -464,11 +534,6 @@ public class ExcelService : IExcelService
             lockrange.Style.Locked = false;
         }
     }
-
-
-
-
-
 
     private string GetExcelColumnName(int columnNumber)
     {
@@ -492,6 +557,7 @@ public class ExcelService : IExcelService
             .Where(model => model.EntityName == entityName)
             .Select(model => model.Id)
             .FirstOrDefault();
+
         if (entityId != 0) // Check if a valid entity Id was found
         {
             return entityId;
