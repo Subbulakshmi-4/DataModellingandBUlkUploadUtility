@@ -66,16 +66,20 @@ namespace DMU_Git.Controllers
             string successMessage = null;
             var columnsDTO = _excelService.GetColumnsForEntity(tableName).ToList();
 
+         
             int? uploadedEntityId = null;
             uploadedEntityId = _excelService.GetEntityIdByEntityNamefromui(tableName);
-            var idfromtemplate = _excelService.GetEntityIdFromTemplate(file);
-            if (idfromtemplate != uploadedEntityId)
+            var idfromtemplatesheet1 = _excelService.GetEntityIdFromTemplate(file, 0); // Sheet 1
+            var idfromtemplatesheet2 = _excelService.GetEntityIdFromTemplate(file, 1); // Sheet 2
+
+            if (idfromtemplatesheet1 != uploadedEntityId && idfromtemplatesheet2 != uploadedEntityId)
             {
                 _response.StatusCode = HttpStatusCode.BadRequest;
                 _response.IsSuccess = false;
-                _response.ErrorMessage.Add("Uploaded excel file is not valid, use template file to upload the data ");
+                _response.ErrorMessage.Add("Uploaded excel file is not valid, use template file to upload the data");
                 return BadRequest(_response);
             }
+
             var excelData = _excelService.ReadExcelFromFormFile(file);
             if (excelData == null)
             {
@@ -152,7 +156,7 @@ namespace DMU_Git.Controllers
                     {
                         bool rowValidationFailed = false; // Flag to track row validation
                         string badRow = string.Join(",", excelData.Rows[row].ItemArray); // Join the row data with commas
-                        for (int col = 0; col < excelData.Columns.Count; col++)
+                        for (int col = 0; col < excelData.Columns.Count - 1; col++)
                         {
                             string cellData = excelData.Rows[row][col].ToString();
                             EntityColumnDTO columnDTO = columnsDTO[col];
@@ -198,7 +202,7 @@ namespace DMU_Git.Controllers
                     {
                         bool rowValidationFailed = false; // Flag to track row validation
 
-                        for (int col = 0; col < validRowsDataTable.Columns.Count; col++)
+                        for (int col = 0; col < validRowsDataTable.Columns.Count - 1; col++)
                         {
                             string cellData = validRowsDataTable.Rows[row][col].ToString();
                             EntityColumnDTO columnDTO = columnsDTO[col];
@@ -217,7 +221,7 @@ namespace DMU_Git.Controllers
                     }
                     //Primary Key Validation
                     List<int> primaryKeyColumns = new List<int>();
-                    for (int col = 0; col < validDataTypesDataTable.Columns.Count; col++)
+                    for (int col = 0; col < validDataTypesDataTable.Columns.Count - 1; col++)
                     {
                         EntityColumnDTO columnDTO = columnsDTO[col];
                         if (columnDTO.ColumnPrimaryKey)

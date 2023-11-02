@@ -15,7 +15,8 @@ namespace DMU_Git.Services.Interface
         public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns, IFormFile file);
         public int GetEntityIdByEntityNamefromui(string entityName);
         public List<EntityListMetadataModel> GetEntityListMetadataModelforlist();
-        public int? GetEntityIdFromTemplate(IFormFile file);
+    
+        public int? GetEntityIdFromTemplate(IFormFile file, int sheetIndex);
         public  Task<List<int>> GetAllIdsFromDynamicTable(string tableName);
         public bool TableExists(string tableName);
         public bool IsValidByteA(string data);

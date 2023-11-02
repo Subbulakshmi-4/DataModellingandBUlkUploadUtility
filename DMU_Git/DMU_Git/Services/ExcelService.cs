@@ -592,7 +592,7 @@ public class ExcelService : IExcelService
                 for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
                 {
                     // Check the first cell in each column
-                    var firstCell = worksheet.Cells[1, col];
+                    var firstCell = worksheet.Cells[2, col];
                     if (string.IsNullOrWhiteSpace(firstCell.Text))
                     {
                         // Skip this column
@@ -601,7 +601,7 @@ public class ExcelService : IExcelService
                     dataTable.Columns.Add(firstCell.Text);
                 }
              //   dataTable.Columns.Add("RowNumber", typeof(int)); // Add "RowNumber" column
-                for (int rowNumber = 2; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
+                for (int rowNumber = 3; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
                 {
                     var dataRow = dataTable.NewRow();
                     // Set the "RowNumber" value for each row
@@ -610,7 +610,7 @@ public class ExcelService : IExcelService
                     for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
                     {
                         // Check if this column should be included
-                        if (dataTable.Columns.Contains(worksheet.Cells[1, col].Text))
+                        if (dataTable.Columns.Contains(worksheet.Cells[2, col].Text))
                         {
                             dataRow[colIndex] = worksheet.Cells[rowNumber, col].Text;
                             colIndex++;
@@ -636,20 +636,20 @@ public class ExcelService : IExcelService
         using (var package = new ExcelPackage(excelFileStream))
         {
             ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
-            rowCount = rowCount + 1;
+            rowCount = rowCount + 2;
             int colCount = worksheet.Dimension.Columns;
             var data = new List<Dictionary<string, string>>();
             var columnNames = new List<string>();
             var skipColumns = new List<bool>();
             for (int col = 1; col <= colCount; col++)
             {
-                var columnName = worksheet.Cells[1, col].Value?.ToString();
+                var columnName = worksheet.Cells[2, col].Value?.ToString();
                 columnNames.Add(columnName);
                 // Check if the first cell in this column is empty or null
                 skipColumns.Add(string.IsNullOrWhiteSpace(columnName));
             }
             // Read data rows
-            for (int row = 2; row <= rowCount; row++)
+            for (int row = 3; row <= rowCount; row++)
             {
                 var rowData = new Dictionary<string, string>();
                 for (int col = 1; col <= colCount; col++)
@@ -970,19 +970,21 @@ public class ExcelService : IExcelService
             return entityListMetadataModels;
         }
     }
-    public int? GetEntityIdFromTemplate(IFormFile file)
+   
+    public int? GetEntityIdFromTemplate(IFormFile file, int sheetIndex)
     {
         using (var package = new ExcelPackage(file.OpenReadStream()))
         {
-            ExcelWorksheet worksheet = package.Workbook.Worksheets[0]; // Assuming entity ID is in the first sheet
+            ExcelWorksheet worksheet = package.Workbook.Worksheets[sheetIndex];
             int entityId;
             if (int.TryParse(worksheet.Cells[1, 1].Text, out entityId))
             {
                 return entityId;
             }
-            return null; // Unable to parse the entity ID from the template
+            return null;
         }
     }
+
     public string GetPrimaryKeyColumnForEntity(string entityName)
     {
         var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
