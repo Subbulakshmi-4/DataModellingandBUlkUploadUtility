@@ -101,13 +101,18 @@ namespace DMU_Git.Controllers
                     DateMaxValue = columnDto.DateMaxValue,
                     DateMinValue = columnDto.DateMinValue,
                     Description = columnDto.Description,
+                    ListEntityId = columnDto.ListEntityId,
+                    ListEntityKey = columnDto.ListEntityKey,
+                    ListEntityValue = columnDto.ListEntityValue,
                     True = columnDto.True,
                     False = columnDto.False,
                     IsNullable = columnDto.IsNullable,
                     DefaultValue = columnDto.DefaultValue,
                     ColumnPrimaryKey = columnDto.ColumnPrimaryKey
+                   
                 }).ToList()
             };
         }
     }
 }
+

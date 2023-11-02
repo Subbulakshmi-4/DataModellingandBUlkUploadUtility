@@ -138,10 +138,10 @@ public class ExcelService : IExcelService
         worksheet.Range[lastRowIndex + 6, 1].Text = "3. Follow the length if mentioned";
         if (parentId.HasValue)
         {
-            worksheet.Range[lastRowIndex + 6, 1].Text = "4. This is Exported Data ExcelFile";
-            worksheet.Range[lastRowIndex + 7, 1].Text = "5. Before Upload the File remove the ErrorMassage";
+            worksheet.Range[lastRowIndex + 7, 1].Text = "4. This is Exported Data ExcelFile";
+            worksheet.Range[lastRowIndex + 8, 1].Text = "5. Before Upload the File remove the ErrorMessage";
         }
-        var staticContentRange = worksheet.Range[lastRowIndex + 2, 1, lastRowIndex + 7, 5];
+        var staticContentRange = worksheet.Range[lastRowIndex + 2, 1, lastRowIndex + 8, 5];
         staticContentRange.Style.FillPattern = ExcelPatternType.Solid;
         staticContentRange.Style.KnownColor = ExcelColors.Yellow;
         // Add the second worksheet for column names
@@ -199,7 +199,7 @@ public class ExcelService : IExcelService
     private void InsertDataIntoExcel(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns, int? parentId)
     {
         var logChilds = _exportExcelService.GetLogChildsByParentIDAsync(parentId.Value).Result;
-        int rowIndex = 2; // Start from the second row because the first row contains headers
+        int rowIndex = 3; // Start from the second row because the first row contains headers
         int errorMessageIndex = 0; // Declare and initialize errorMessageIndex here
 
         foreach (var logChild in logChilds)
