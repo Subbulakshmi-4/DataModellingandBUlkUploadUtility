@@ -6,7 +6,7 @@ namespace DMU_Git.Services.Interface
 {
     public interface IExcelService
     {
-        byte[] GenerateExcelFile(List<EntityColumnDTO> columns);
+        byte[] GenerateExcelFile(List<EntityColumnDTO> columns, int? parentId);
         List<Dictionary<string, string>> ReadDataFromExcel(Stream excelFileStream,int rowcount);
         public DataTable ReadExcelFromFormFile(IFormFile excelFile);
         public bool IsValidDataType(string data, string expectedDataType);
