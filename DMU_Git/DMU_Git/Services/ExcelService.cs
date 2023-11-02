@@ -81,6 +81,7 @@ public class ExcelService : IExcelService
                 worksheet.Range[i + 3, 6].Text = column.MaxLength.ToString();
             }
 
+
             if (string.IsNullOrEmpty(column.DateMinValue) && string.IsNullOrEmpty(column.DateMaxValue))
             {
                 worksheet.Range[i + 3, 7].Text = string.Empty;
