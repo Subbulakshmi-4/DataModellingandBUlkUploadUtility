@@ -10,6 +10,7 @@ using DMU_Git.Models;
 using Dapper;
 using System.Text;
 using System.Drawing;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using DMU_Git.Services;
 using Azure;
 using Microsoft.Net.Http.Headers;
@@ -17,6 +18,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Buffers;
 using Microsoft.IdentityModel.Tokens;
 using static OfficeOpenXml.ExcelErrorValue;
+
 
 public class ExcelService : IExcelService
 {
@@ -578,6 +580,7 @@ public class ExcelService : IExcelService
             return entityListMetadataModels;
         }
     }
+
     public DataTable ReadExcelFromFormFile(IFormFile excelFile)
     {
         using (Stream stream = excelFile.OpenReadStream())
@@ -597,9 +600,12 @@ public class ExcelService : IExcelService
                     }
                     dataTable.Columns.Add(firstCell.Text);
                 }
+             //   dataTable.Columns.Add("RowNumber", typeof(int)); // Add "RowNumber" column
                 for (int rowNumber = 2; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
                 {
                     var dataRow = dataTable.NewRow();
+                    // Set the "RowNumber" value for each row
+                 //   dataRow["RowNumber"] = rowNumber;
                     int colIndex = 0;
                     for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
                     {
@@ -656,6 +662,8 @@ public class ExcelService : IExcelService
                         rowData[columnName] = cellValue;
                     }
                 }
+                // Include the row number as "RowNumber" in the dictionary
+               // rowData["RowNumber"] = row.ToString();
                 data.Add(rowData);
             }
             return data;
@@ -770,7 +778,8 @@ public class ExcelService : IExcelService
         }
         return columnsDTO;
     }
-    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, int successdata, string errorMessage, string successMessage)
+
+    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, int successdata, List<string> errorMessage, int total_count)
     {
         var storeentity = await _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
         LogParent logParent = new LogParent();
@@ -778,18 +787,13 @@ public class ExcelService : IExcelService
         logParent.User_Id = 1;
         logParent.Entity_Id = storeentity.Id;
         logParent.Timestamp = DateTime.UtcNow;
-        if (filedata.Count > 0)
-        {
-            logParent.FailCount = filedata.Count - 1;
-        }
-        else
-        {
-            logParent.FailCount = filedata.Count;
-        }
         logParent.PassCount = successdata;
-        logParent.RecordCount = logParent.FailCount + logParent.PassCount;
+        logParent.RecordCount = total_count;
+        logParent.FailCount = total_count - successdata;
+
         // Insert the LogParent record
         _context.logParents.Add(logParent);
+
         try
         {
             await _context.SaveChangesAsync();
@@ -799,23 +803,30 @@ public class ExcelService : IExcelService
             // Log or handle the exception
             Console.WriteLine("Error: " + ex.Message);
         }
-        LogChild logChild = new LogChild();
-        int parentId = logParent.ID;
-        logChild.ParentID = parentId; // Set the ParentId
-        if (filedata.Count() > 0)
+
+        List<LogChild> logChildren = new List<LogChild>();
+
+        for (int i = 0; i < errorMessage.Count; i++)
         {
-            string delimiter = ";"; // Specify the delimiter you want
-            string result = string.Join(delimiter, filedata);
-            logChild.Filedata = result; // Set the values as needed
-            logChild.ErrorMessage = errorMessage;
+            LogChild logChild = new LogChild();
+            logChild.ParentID = logParent.ID; // Set the ParentId
+            logChild.ErrorMessage = errorMessage[i];
+
+            if (filedata.Count > 0)
+            {
+                logChild.Filedata = filedata[i];
+            }
+            else
+            {
+                logChild.Filedata = ""; // Set the filedata as needed
+            }
+
+            // Insert the LogChild record
+            _context.logChilds.Add(logChild);
+
+            logChildren.Add(logChild);
         }
-        else
-        {
-            logChild.Filedata = "";
-            logChild.ErrorMessage = successMessage;
-        }
-        // Insert the LogChild record
-        await _context.logChilds.AddAsync(logChild);
+
         try
         {
             await _context.SaveChangesAsync();
@@ -825,13 +836,16 @@ public class ExcelService : IExcelService
             // Log or handle the exception
             Console.WriteLine("Error: " + ex.Message);
         }
+
         LogDTO logDTO = new LogDTO()
         {
             LogParentDTOs = logParent,
-            ChildrenDTOs = _context.logChilds.Where(x => x.ParentID == logParent.ID).ToList()
+            ChildrenDTOs = logChildren
         };
+
         return logDTO;
     }
+
     public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns, IFormFile file)
     {
         var columnProperties = GetColumnsForEntity(tableName).ToList();
@@ -922,7 +936,9 @@ public class ExcelService : IExcelService
                 }
                 string comma_separated_string = string.Join(",", columns.ToArray());
                 badRows.Insert(0, comma_separated_string);
-                var result = Createlog(tableName, badRows, fileName, successdata, errorMessages, successMessage);
+                var result = Createlog(tableName, badRows, fileName, successdata, new List<string> { errorMessages }, convertedDataList.Count);
+               
+
             }
         }
     }
