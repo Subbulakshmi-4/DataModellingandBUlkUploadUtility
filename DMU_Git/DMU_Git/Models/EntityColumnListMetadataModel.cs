@@ -20,6 +20,9 @@ namespace DMU_Git.Models
         public string Description { get; set; }
         public bool IsNullable { get; set; }
         public string DefaultValue { get; set; }
+        public int ListEntityId { get; set; }
+        public int ListEntityKey { get; set; }
+        public int ListEntityValue { get; set; }
         public string True { get; set; }
         public string False { get; set; }
         public bool ColumnPrimaryKey { get; set; }
