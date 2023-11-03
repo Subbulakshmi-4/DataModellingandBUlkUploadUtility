@@ -10,6 +10,7 @@ using DMU_Git.Models;
 using Dapper;
 using System.Text;
 using System.Drawing;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using DMU_Git.Services;
 using Azure;
 using Microsoft.Net.Http.Headers;
@@ -17,6 +18,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Buffers;
 using Microsoft.IdentityModel.Tokens;
 using static OfficeOpenXml.ExcelErrorValue;
+
 
 public class ExcelService : IExcelService
 {
@@ -134,10 +136,10 @@ public class ExcelService : IExcelService
         worksheet.Range[lastRowIndex + 7, 1].Text = "4. Current date column will be automatically updated. No need to fill that.";
         if (parentId.HasValue)
         {
-            worksheet.Range[lastRowIndex + 6, 1].Text = "4. This is Exported Data ExcelFile";
-            worksheet.Range[lastRowIndex + 7, 1].Text = "5. Before Upload the File remove the ErrorMassage";
+            worksheet.Range[lastRowIndex + 7, 1].Text = "4. This is Exported Data ExcelFile";
+            worksheet.Range[lastRowIndex + 8, 1].Text = "5. Before Upload the File remove the ErrorMessage";
         }
-        var staticContentRange = worksheet.Range[lastRowIndex + 2, 1, lastRowIndex + 7, 5];
+        var staticContentRange = worksheet.Range[lastRowIndex + 2, 1, lastRowIndex + 8, 5];
         staticContentRange.Style.FillPattern = ExcelPatternType.Solid;
         staticContentRange.Style.KnownColor = ExcelColors.Yellow;
         // Add the second worksheet for column names
@@ -195,7 +197,7 @@ public class ExcelService : IExcelService
     private void InsertDataIntoExcel(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns, int? parentId)
     {
         var logChilds = _exportExcelService.GetLogChildsByParentIDAsync(parentId.Value).Result;
-        int rowIndex = 2; // Start from the second row because the first row contains headers
+        int rowIndex = 3; // Start from the second row because the first row contains headers
         int errorMessageIndex = 0; // Declare and initialize errorMessageIndex here
 
         foreach (var logChild in logChilds)
@@ -578,6 +580,7 @@ public class ExcelService : IExcelService
             return entityListMetadataModels;
         }
     }
+
     public DataTable ReadExcelFromFormFile(IFormFile excelFile)
     {
         using (Stream stream = excelFile.OpenReadStream())
@@ -589,7 +592,7 @@ public class ExcelService : IExcelService
                 for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
                 {
                     // Check the first cell in each column
-                    var firstCell = worksheet.Cells[1, col];
+                    var firstCell = worksheet.Cells[2, col];
                     if (string.IsNullOrWhiteSpace(firstCell.Text))
                     {
                         // Skip this column
@@ -597,14 +600,17 @@ public class ExcelService : IExcelService
                     }
                     dataTable.Columns.Add(firstCell.Text);
                 }
-                for (int rowNumber = 2; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
+             //   dataTable.Columns.Add("RowNumber", typeof(int)); // Add "RowNumber" column
+                for (int rowNumber = 3; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
                 {
                     var dataRow = dataTable.NewRow();
+                    // Set the "RowNumber" value for each row
+                 //   dataRow["RowNumber"] = rowNumber;
                     int colIndex = 0;
                     for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
                     {
                         // Check if this column should be included
-                        if (dataTable.Columns.Contains(worksheet.Cells[1, col].Text))
+                        if (dataTable.Columns.Contains(worksheet.Cells[2, col].Text))
                         {
                             dataRow[colIndex] = worksheet.Cells[rowNumber, col].Text;
                             colIndex++;
@@ -630,20 +636,20 @@ public class ExcelService : IExcelService
         using (var package = new ExcelPackage(excelFileStream))
         {
             ExcelWorksheet worksheet = package.Workbook.Worksheets[1];
-            rowCount = rowCount + 1;
+            rowCount = rowCount + 2;
             int colCount = worksheet.Dimension.Columns;
             var data = new List<Dictionary<string, string>>();
             var columnNames = new List<string>();
             var skipColumns = new List<bool>();
             for (int col = 1; col <= colCount; col++)
             {
-                var columnName = worksheet.Cells[1, col].Value?.ToString();
+                var columnName = worksheet.Cells[2, col].Value?.ToString();
                 columnNames.Add(columnName);
                 // Check if the first cell in this column is empty or null
                 skipColumns.Add(string.IsNullOrWhiteSpace(columnName));
             }
             // Read data rows
-            for (int row = 2; row <= rowCount; row++)
+            for (int row = 3; row <= rowCount; row++)
             {
                 var rowData = new Dictionary<string, string>();
                 for (int col = 1; col <= colCount; col++)
@@ -656,6 +662,8 @@ public class ExcelService : IExcelService
                         rowData[columnName] = cellValue;
                     }
                 }
+                // Include the row number as "RowNumber" in the dictionary
+               // rowData["RowNumber"] = row.ToString();
                 data.Add(rowData);
             }
             return data;
@@ -770,7 +778,8 @@ public class ExcelService : IExcelService
         }
         return columnsDTO;
     }
-    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, int successdata, string errorMessage, string successMessage)
+
+    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, int successdata, List<string> errorMessage, int total_count)
     {
         var storeentity = await _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
         LogParent logParent = new LogParent();
@@ -778,18 +787,13 @@ public class ExcelService : IExcelService
         logParent.User_Id = 1;
         logParent.Entity_Id = storeentity.Id;
         logParent.Timestamp = DateTime.UtcNow;
-        if (filedata.Count > 0)
-        {
-            logParent.FailCount = filedata.Count - 1;
-        }
-        else
-        {
-            logParent.FailCount = filedata.Count;
-        }
         logParent.PassCount = successdata;
-        logParent.RecordCount = logParent.FailCount + logParent.PassCount;
+        logParent.RecordCount = total_count;
+        logParent.FailCount = total_count - successdata;
+
         // Insert the LogParent record
         _context.logParents.Add(logParent);
+
         try
         {
             await _context.SaveChangesAsync();
@@ -799,23 +803,30 @@ public class ExcelService : IExcelService
             // Log or handle the exception
             Console.WriteLine("Error: " + ex.Message);
         }
-        LogChild logChild = new LogChild();
-        int parentId = logParent.ID;
-        logChild.ParentID = parentId; // Set the ParentId
-        if (filedata.Count() > 0)
+
+        List<LogChild> logChildren = new List<LogChild>();
+
+        for (int i = 0; i < errorMessage.Count; i++)
         {
-            string delimiter = ";"; // Specify the delimiter you want
-            string result = string.Join(delimiter, filedata);
-            logChild.Filedata = result; // Set the values as needed
-            logChild.ErrorMessage = errorMessage;
+            LogChild logChild = new LogChild();
+            logChild.ParentID = logParent.ID; // Set the ParentId
+            logChild.ErrorMessage = errorMessage[i];
+
+            if (filedata.Count > 0)
+            {
+                logChild.Filedata = filedata[i];
+            }
+            else
+            {
+                logChild.Filedata = ""; // Set the filedata as needed
+            }
+
+            // Insert the LogChild record
+            _context.logChilds.Add(logChild);
+
+            logChildren.Add(logChild);
         }
-        else
-        {
-            logChild.Filedata = "";
-            logChild.ErrorMessage = successMessage;
-        }
-        // Insert the LogChild record
-        await _context.logChilds.AddAsync(logChild);
+
         try
         {
             await _context.SaveChangesAsync();
@@ -825,13 +836,16 @@ public class ExcelService : IExcelService
             // Log or handle the exception
             Console.WriteLine("Error: " + ex.Message);
         }
+
         LogDTO logDTO = new LogDTO()
         {
             LogParentDTOs = logParent,
-            ChildrenDTOs = _context.logChilds.Where(x => x.ParentID == logParent.ID).ToList()
+            ChildrenDTOs = logChildren
         };
+
         return logDTO;
     }
+
     public void InsertDataFromDataTableToPostgreSQL(DataTable data, string tableName, List<string> columns, IFormFile file)
     {
         var columnProperties = GetColumnsForEntity(tableName).ToList();
@@ -922,7 +936,9 @@ public class ExcelService : IExcelService
                 }
                 string comma_separated_string = string.Join(",", columns.ToArray());
                 badRows.Insert(0, comma_separated_string);
-                var result = Createlog(tableName, badRows, fileName, successdata, errorMessages, successMessage);
+                var result = Createlog(tableName, badRows, fileName, successdata, new List<string> { errorMessages }, convertedDataList.Count);
+               
+
             }
         }
     }
@@ -954,19 +970,21 @@ public class ExcelService : IExcelService
             return entityListMetadataModels;
         }
     }
-    public int? GetEntityIdFromTemplate(IFormFile file)
+   
+    public int? GetEntityIdFromTemplate(IFormFile file, int sheetIndex)
     {
         using (var package = new ExcelPackage(file.OpenReadStream()))
         {
-            ExcelWorksheet worksheet = package.Workbook.Worksheets[0]; // Assuming entity ID is in the first sheet
+            ExcelWorksheet worksheet = package.Workbook.Worksheets[sheetIndex];
             int entityId;
             if (int.TryParse(worksheet.Cells[1, 1].Text, out entityId))
             {
                 return entityId;
             }
-            return null; // Unable to parse the entity ID from the template
+            return null;
         }
     }
+
     public string GetPrimaryKeyColumnForEntity(string entityName)
     {
         var entity = _context.EntityListMetadataModels.FirstOrDefault(e => e.EntityName == entityName);
