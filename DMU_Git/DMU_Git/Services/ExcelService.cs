@@ -36,7 +36,8 @@ public class ExcelService : IExcelService
         
         // Add the first worksheet with detailed column information
         worksheet.Name = "DataDictionary";
-            
+        worksheet.DefaultColumnWidth = 20;
+
         // Set protection options for the first sheet (read-only)
         worksheet.Protect("your_password", SheetProtectionType.All);
         worksheet.Protect("your_password", SheetProtectionType.None);
@@ -123,10 +124,6 @@ public class ExcelService : IExcelService
             worksheet.Range["A1"].Text = entityId.ToString();
         }
         worksheet.HideRow(1);
-       
-
-
-
         // Add static content in the last row (vertically)
         var lastRowIndex = worksheet.Rows.Length;
         worksheet.Range[lastRowIndex + 2, 1].Text = "";
@@ -134,6 +131,7 @@ public class ExcelService : IExcelService
         worksheet.Range[lastRowIndex + 4, 1].Text = "1. Don't add or delete any columns";
         worksheet.Range[lastRowIndex + 5, 1].Text = "2. Don't add any extra sheets";
         worksheet.Range[lastRowIndex + 6, 1].Text = "3. Follow the length if mentioned";
+        worksheet.Range[lastRowIndex + 7, 1].Text = "4. Current date column will be automatically updated. No need to fill that.";
         if (parentId.HasValue)
         {
             worksheet.Range[lastRowIndex + 6, 1].Text = "4. This is Exported Data ExcelFile";
@@ -148,7 +146,7 @@ public class ExcelService : IExcelService
         // After adding content to the columns
         //columnNamesWorksheet.AllocatedRange.AutoFitColumns();
         // Set a default column width for the "Fill data" worksheet
-        columnNamesWorksheet.DefaultColumnWidth = 15; // Set the width in characters (adjust as needed)
+        columnNamesWorksheet.DefaultColumnWidth = 20; // Set the width in characters (adjust as needed)
 
         int lastColumnIndex = columns.Count + 1;
 
@@ -465,6 +463,8 @@ public class ExcelService : IExcelService
             {
                 if (string.IsNullOrEmpty(truevalue) && string.IsNullOrEmpty(falsevalue))
                 {
+                    List<string> booleanOptions = new List<string> { "True", "False" };
+
                     // No specific values provided, allow "true" and "false"
                     validation.Values = new string[] { "true", "false" };
                     validation.ErrorTitle = "Error";
