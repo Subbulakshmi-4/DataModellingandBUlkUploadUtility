@@ -24,6 +24,8 @@ namespace DMU_Git.Models.DTO
         public bool ColumnPrimaryKey { get; set; }
         public string True { get; set; }
         public string False { get; set; }
+
+  
         
         public static explicit operator EntityColumnDTO(EntityColumnListMetadataModel data)
         {

@@ -39,7 +39,8 @@ public class ExcelService : IExcelService
         
         // Add the first worksheet with detailed column information
         worksheet.Name = "DataDictionary";
-            
+        worksheet.DefaultColumnWidth = 20;
+
         // Set protection options for the first sheet (read-only)
         worksheet.Protect("your_password", SheetProtectionType.All);
         worksheet.Protect("your_password", SheetProtectionType.None);
@@ -126,10 +127,6 @@ public class ExcelService : IExcelService
             worksheet.Range["A1"].Text = entityId.ToString();
         }
         worksheet.HideRow(1);
-       
-
-
-
         // Add static content in the last row (vertically)
         var lastRowIndex = worksheet.Rows.Length;
         worksheet.Range[lastRowIndex + 2, 1].Text = "";
@@ -137,6 +134,7 @@ public class ExcelService : IExcelService
         worksheet.Range[lastRowIndex + 4, 1].Text = "1. Don't add or delete any columns";
         worksheet.Range[lastRowIndex + 5, 1].Text = "2. Don't add any extra sheets";
         worksheet.Range[lastRowIndex + 6, 1].Text = "3. Follow the length if mentioned";
+        worksheet.Range[lastRowIndex + 7, 1].Text = "4. Current date column will be automatically updated. No need to fill that.";
         if (parentId.HasValue)
         {
             worksheet.Range[lastRowIndex + 7, 1].Text = "4. This is Exported Data ExcelFile";
@@ -151,7 +149,7 @@ public class ExcelService : IExcelService
         // After adding content to the columns
         //columnNamesWorksheet.AllocatedRange.AutoFitColumns();
         // Set a default column width for the "Fill data" worksheet
-        columnNamesWorksheet.DefaultColumnWidth = 15; // Set the width in characters (adjust as needed)
+        columnNamesWorksheet.DefaultColumnWidth = 20; // Set the width in characters (adjust as needed)
 
         int lastColumnIndex = columns.Count + 1;
 
@@ -469,6 +467,8 @@ public class ExcelService : IExcelService
             {
                 if (string.IsNullOrEmpty(truevalue) && string.IsNullOrEmpty(falsevalue))
                 {
+                    List<string> booleanOptions = new List<string> { "True", "False" };
+
                     // No specific values provided, allow "true" and "false"
                     validation.Values = new string[] { "true", "false" };
                     validation.ErrorTitle = "Error";
@@ -594,6 +594,7 @@ public class ExcelService : IExcelService
                 for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
                 {
                     // Check the first cell in each column
+                    //[2, col]=>[row,col]
                     var firstCell = worksheet.Cells[2, col];
                     if (string.IsNullOrWhiteSpace(firstCell.Text))
                     {
@@ -601,13 +602,14 @@ public class ExcelService : IExcelService
                         continue;
                     }
                     dataTable.Columns.Add(firstCell.Text);
+                    
                 }
-             //   dataTable.Columns.Add("RowNumber", typeof(int)); // Add "RowNumber" column
+                dataTable.Columns.Add("RowNumber", typeof(int)); // Add "RowNumber" column
                 for (int rowNumber = 3; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
                 {
                     var dataRow = dataTable.NewRow();
-                    // Set the "RowNumber" value for each row
-                 //   dataRow["RowNumber"] = rowNumber;
+                 // Set the "RowNumber" value for each row
+                 //dataRow["RowNumber"] = rowNumber;
                     int colIndex = 0;
                     for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
                     {
@@ -629,6 +631,14 @@ public class ExcelService : IExcelService
                 dataTable = dataTable.AsEnumerable()
                     .Where(row => !row.ItemArray.All(field => field is DBNull || string.IsNullOrWhiteSpace(field.ToString())))
                     .CopyToDataTable();
+
+                dataTable = dataTable.AsEnumerable().Select((row, index) =>
+                {
+                    row.SetField("RowNumber", index + 3);
+                    return row;
+                }).CopyToDataTable();
+
+
                 return dataTable;
             }
         }
@@ -650,10 +660,13 @@ public class ExcelService : IExcelService
                 // Check if the first cell in this column is empty or null
                 skipColumns.Add(string.IsNullOrWhiteSpace(columnName));
             }
+     
             // Read data rows
             for (int row = 3; row <= rowCount; row++)
             {
+            
                 var rowData = new Dictionary<string, string>();
+                
                 for (int col = 1; col <= colCount; col++)
                 {
                     // If the column should be skipped, don't include it in the rowData
@@ -665,7 +678,7 @@ public class ExcelService : IExcelService
                     }
                 }
                 // Include the row number as "RowNumber" in the dictionary
-               // rowData["RowNumber"] = row.ToString();
+                rowData["RowNumber"] = row.ToString();
                 data.Add(rowData);
             }
             return data;
@@ -781,7 +794,7 @@ public class ExcelService : IExcelService
         return columnsDTO;
     }
 
-    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, int successdata, List<string> errorMessage, int total_count)
+    public async Task<LogDTO> Createlog(string tableName, List<string> filedata, string fileName, int successdata, List<string> errorMessage, int total_count, List<string> ErrorRowNumber)
     {
         var storeentity = await _context.EntityListMetadataModels.FirstOrDefaultAsync(x => x.EntityName.ToLower() == tableName.ToLower());
         LogParent logParent = new LogParent();
@@ -792,6 +805,7 @@ public class ExcelService : IExcelService
         logParent.PassCount = successdata;
         logParent.RecordCount = total_count;
         logParent.FailCount = total_count - successdata;
+
 
         // Insert the LogParent record
         _context.logParents.Add(logParent);
@@ -823,6 +837,15 @@ public class ExcelService : IExcelService
                 logChild.Filedata = ""; // Set the filedata as needed
             }
 
+            if (ErrorRowNumber.Count > 0)
+            {
+                logChild.ErrorRowNumber = ErrorRowNumber[i];
+            }
+            else
+            {
+                logChild.ErrorRowNumber = ""; // Set the filedata as needed
+            }
+          
             // Insert the LogChild record
             _context.logChilds.Add(logChild);
 
@@ -920,6 +943,7 @@ public class ExcelService : IExcelService
                 string errorMessages = "Server error";
                 string successMessage = " ";
                 string fileName = file.FileName;
+                List<string> errorRownumber = new List<string>();
                 List<string> badRows = new List<string>();
                 foreach (var dataToRemoveItem in dataToRemove)
                 {
@@ -938,7 +962,7 @@ public class ExcelService : IExcelService
                 }
                 string comma_separated_string = string.Join(",", columns.ToArray());
                 badRows.Insert(0, comma_separated_string);
-                var result = Createlog(tableName, badRows, fileName, successdata, new List<string> { errorMessages }, convertedDataList.Count);
+                var result = Createlog(tableName, badRows, fileName, successdata, new List<string> { errorMessages }, convertedDataList.Count, errorRownumber);
                
 
             }
