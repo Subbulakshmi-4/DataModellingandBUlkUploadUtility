@@ -161,8 +161,8 @@ namespace DMU_Git.Controllers
                     {
                         bool rowValidationFailed = false; // Flag to track row validation
 
-                        string badRow = string.Join("!", excelData.Rows[row].ItemArray); // Join the row data with commas
-                        for (int col = 0; col < excelData.Columns.Count - 1; col++)
+                        string badRow = string.Join(",", excelData.Rows[row].ItemArray); // Join the row data with commas //chng
+                        for (int col = 0; col < excelData.Columns.Count - 2; col++) //chng
 
                         {
                             string cellData = excelData.Rows[row][col].ToString();
@@ -197,7 +197,7 @@ namespace DMU_Git.Controllers
                         List<string> modifiedRows = badRows.Select(row => row.Substring(0, row.LastIndexOf(','))).ToList();
                         badRows = modifiedRows;
                         string delimiter = ";"; // Specify the delimiter you want
-                        string delimiter1 = "!"; // Specify the delimiter you want
+                        string delimiter1 = ","; // Specify the delimiter you want   //chng
                         string baddatas = string.Join(delimiter, badRows);
                         string badcolumns = string.Join(delimiter1, errorcolumnnames);
                         filedatas.Add(baddatas);
@@ -226,7 +226,7 @@ namespace DMU_Git.Controllers
                         // If row validation failed, add the entire row data as a comma-separated string to the badRows list
                         if (rowValidationFailed)
                         {
-                            string badRow = string.Join("!", validRowsDataTable.Rows[row].ItemArray); // Join the row data with commas
+                            string badRow = string.Join(",", validRowsDataTable.Rows[row].ItemArray); // Join the row data with commas  //chng
                             badRows.Add(badRow);
                         }
                     }
@@ -254,7 +254,7 @@ namespace DMU_Git.Controllers
                             {
                                 rowValidationFailed = true;
                                 columnName = columnsDTO[primaryKeyColumnIndex].EntityColumnName;
-                                badRows.Add(string.Join("!", validRowsDataTable.Rows[row].ItemArray)); // Store the row data
+                                badRows.Add(string.Join(",", validRowsDataTable.Rows[row].ItemArray)); // Store the row data   //chng
                                 break;
                             }
                             if (seenValues.Contains(cellData))
@@ -272,7 +272,7 @@ namespace DMU_Git.Controllers
                         }
                         if (rowValidationFailed)
                         {
-                            badRows.Add(string.Join("!", badRowData));
+                            badRows.Add(string.Join(",", badRowData));   //chng
                         }
                     }
                 }
