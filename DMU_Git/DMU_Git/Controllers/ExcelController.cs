@@ -1,4 +1,6 @@
-﻿using DMU_Git.Models;
+﻿
+
+using DMU_Git.Models;
 using DMU_Git.Models.DTO;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -27,13 +29,13 @@ namespace DMU_Git.Controllers
         }
 
         [HttpPost("generate")]
-        public IActionResult GenerateExcelFile([FromBody] List<EntityColumnDTO> columns,int? parentId)
+        public IActionResult GenerateExcelFile([FromBody] List<EntityColumnDTO> columns, int? parentId)
         {
             try
             {
                 // Convert column names to lowercase
                 //var lowercaseColumns = columns.Select(col => new EntityColumnDTO { EntityColumnName = col.EntityColumnName.ToLower() }).ToList();
-                byte[] excelBytes = _excelService.GenerateExcelFile(columns,parentId);
+                byte[] excelBytes = _excelService.GenerateExcelFile(columns, parentId);
 
                 // Create a response for downloading the Excel file
                 var fileContentResult = new FileContentResult(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -64,9 +66,10 @@ namespace DMU_Git.Controllers
             var mytablername = tableName;
             List<string> errorMessages = new List<string>();
             string successMessage = null;
+
             var columnsDTO = _excelService.GetColumnsForEntity(tableName).ToList();
 
-         
+
             int? uploadedEntityId = null;
             uploadedEntityId = _excelService.GetEntityIdByEntityNamefromui(tableName);
             var idfromtemplatesheet1 = _excelService.GetEntityIdFromTemplate(file, 0); // Sheet 1
@@ -103,7 +106,7 @@ namespace DMU_Git.Controllers
                 _response.ErrorMessage.Add("Table name is required.");
                 return BadRequest(_response);
             }
-            
+
             bool checkingtableName = _excelService.TableExists(tableName);
             if (checkingtableName == false)
             {
@@ -118,10 +121,11 @@ namespace DMU_Git.Controllers
             DataTable successdata = validRowsDataTable.Clone(); // Create a DataTable to store valid rows
             List<string> badRows = new List<string>();
             List<string> filedatas = new List<string>();
+            List<string> ErrorRowNumber = new List<string>();
             List<string> errorcolumnnames = new List<string>();
             List<string> columns = new List<string>();
             int total_count = excelData.Rows.Count;
-            
+
             string comma_separated_string = null;
             try
             {
@@ -156,9 +160,10 @@ namespace DMU_Git.Controllers
                     {
                         bool rowValidationFailed = false; // Flag to track row validation
                         string badRow = string.Join(",", excelData.Rows[row].ItemArray); // Join the row data with commas
-                        for (int col = 0; col < excelData.Columns.Count - 1; col++)
+                        for (int col = 0; col < excelData.Columns.Count - 2 ; col++)
                         {
                             string cellData = excelData.Rows[row][col].ToString();
+
                             EntityColumnDTO columnDTO = columnsDTO[col];
 
                             if (columnDTO.IsNullable == true && cellData == "")
@@ -172,18 +177,22 @@ namespace DMU_Git.Controllers
 
                                 break;
                             }
-                            
+
                         }
                         // If row validation succeeded, add the entire row to the validRowsDataTable
                         if (!rowValidationFailed)
                         {
-                             validRowsDataTable.Rows.Add(excelData.Rows[row].ItemArray);
-                        }                      
+                            validRowsDataTable.Rows.Add(excelData.Rows[row].ItemArray);
+                        }
                     }
 
-                    if(badRows.Count > 0)
+                    if (badRows.Count > 0)
                     {
+                        string values = string.Join(",", badRows.Select(row => row.Split(',').Last()));
+                        ErrorRowNumber.Add(values);
                         badRows.Insert(0, comma_separated_string);
+                        List<string> modifiedRows = badRows.Select(row => row.Substring(0, row.LastIndexOf(','))).ToList();
+                        badRows = modifiedRows;
                         string delimiter = ";"; // Specify the delimiter you want
                         string delimiter1 = ","; // Specify the delimiter you want
                         string baddatas = string.Join(delimiter, badRows);
@@ -191,18 +200,17 @@ namespace DMU_Git.Controllers
                         filedatas.Add(baddatas);
                         errorMessages.Add($"Null value found in column '{badcolumns}'");
                         badRows = new List<string>();
+
                     }
-
-
 
                     // Data Type Validation
                     DataTable validDataTypesDataTable = validRowsDataTable.Clone();
-                    
+
                     for (int row = 0; row < validRowsDataTable.Rows.Count; row++)
                     {
                         bool rowValidationFailed = false; // Flag to track row validation
 
-                        for (int col = 0; col < validRowsDataTable.Columns.Count - 1; col++)
+                        for (int col = 0; col < validRowsDataTable.Columns.Count - 2; col++)
                         {
                             string cellData = validRowsDataTable.Rows[row][col].ToString();
                             EntityColumnDTO columnDTO = columnsDTO[col];
@@ -221,7 +229,7 @@ namespace DMU_Git.Controllers
                     }
                     //Primary Key Validation
                     List<int> primaryKeyColumns = new List<int>();
-                    for (int col = 0; col < validDataTypesDataTable.Columns.Count - 1; col++)
+                    for (int col = 0; col < validDataTypesDataTable.Columns.Count - 2; col++)
                     {
                         EntityColumnDTO columnDTO = columnsDTO[col];
                         if (columnDTO.ColumnPrimaryKey)
@@ -236,7 +244,7 @@ namespace DMU_Git.Controllers
                         bool rowValidationFailed = false; // Flag to track row validation
                         var badRowData = new List<string>(); // Store the row data for potential duplicate errors
                         for (int col = 0; col < primaryKeyColumns.Count; col++)
-                            {
+                        {
                             int primaryKeyColumnIndex = primaryKeyColumns[col];
                             string cellData = validRowsDataTable.Rows[row][primaryKeyColumnIndex].ToString();
                             if (ids.Contains(int.Parse(cellData)) || seenValues.Contains(cellData))
@@ -267,16 +275,32 @@ namespace DMU_Git.Controllers
                 }
                 if (badRows.Count > 0)
                 {
+                    badRows = badRows.Where(x => x != "").ToList();
+                    string values = string.Join(",", badRows.Select(row => row.Split(',').Last()));
+                    ErrorRowNumber.Add(values);
                     badRows.Insert(0, comma_separated_string);
+                    List<string> modifiedRows = badRows.Select(row =>
+                    {
+                        int lastCommaIndex = row.LastIndexOf(',');
+                        if (lastCommaIndex >= 0)
+                        {
+                            return row.Substring(0, lastCommaIndex);
+                        }
+                        else
+                        {
+                            return row; // No comma found, keep the original string
+                        }
+                    }).Where(row => !string.IsNullOrEmpty(row)).ToList();
+                    badRows = modifiedRows;
                     string delimiter = ";"; // Specify the delimiter you want
                     string baddatas = string.Join(delimiter, badRows);
                     filedatas.Add(baddatas);
                     errorMessages.Add($"Duplicate key value violates unique constraints in column '{columnName}' in {tableName}");
                     badRows = new List<string>();
                 }
-               
+
                 //store log data
-                var result = await _excelService.Createlog(tableName, filedatas, fileName, successdata.Rows.Count, errorMessages , total_count);
+                var result = await _excelService.Createlog(tableName, filedatas, fileName, successdata.Rows.Count, errorMessages, total_count,ErrorRowNumber);
                 // Build the values for the SQL INSERT statement
                 _excelService.InsertDataFromDataTableToPostgreSQL(successdata, tableName, columns, file);
                 if (successdata.Rows.Count == 0)
@@ -287,7 +311,7 @@ namespace DMU_Git.Controllers
                     _response.ErrorMessage.Add("All Records are incorrect");
                     return Ok(_response);
                 }
-                else if(filedatas.Count == 0) 
+                else if (filedatas.Count == 0)
                 {
                     _response.Result = result;
                     _response.StatusCode = HttpStatusCode.Created;
