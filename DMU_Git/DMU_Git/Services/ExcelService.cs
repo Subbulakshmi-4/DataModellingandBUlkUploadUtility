@@ -214,7 +214,7 @@ public class ExcelService : IExcelService
                         continue;
                     }
                     string cleanedRow = rows[i].TrimStart(';').Trim();
-                    string[] values = cleanedRow.Split('!');
+                    string[] values = cleanedRow.Split(',');    //chng
                     for (int columnIndex = 0; columnIndex < values.Length; columnIndex++)
                     {
                         columnNamesWorksheet.Range[rowIndex, columnIndex + 1].Text = values[columnIndex];
