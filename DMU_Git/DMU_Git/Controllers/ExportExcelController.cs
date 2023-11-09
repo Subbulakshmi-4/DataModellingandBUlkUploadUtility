@@ -4,6 +4,7 @@ using OfficeOpenXml;
 using Microsoft.Net.Http.Headers;
 
 
+
 namespace DMU_Git.Controllers
 {
     [Route("api/[controller]")]
@@ -18,7 +19,7 @@ namespace DMU_Git.Controllers
         [HttpGet("{parentId}")]
         public async Task<IActionResult> ExportToExcel(int parentId)
         {
-            var logChilds = await _exportExcelService.GetLogChildsByParentIDAsync(parentId);
+            var logChilds = await _exportExcelService.GetAllLogChildsByParentIDAsync(parentId);
             if (logChilds.Any())
             {
                 using (var package = new ExcelPackage())
