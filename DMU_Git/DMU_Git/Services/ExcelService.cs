@@ -20,6 +20,7 @@ using Microsoft.IdentityModel.Tokens;
 using static OfficeOpenXml.ExcelErrorValue;
 
 
+
 public class ExcelService : IExcelService
 {
     private readonly ApplicationDbContext _context;
@@ -196,38 +197,39 @@ public class ExcelService : IExcelService
         }
     }
 
-    private void InsertDataIntoExcel(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns, int? parentId)
+    private async Task InsertDataIntoExcel(Worksheet columnNamesWorksheet, List<EntityColumnDTO> columns, int? parentId)
     {
-        var logChilds = _exportExcelService.GetLogChildsByParentIDAsync(parentId.Value).Result;
-        int rowIndex = 3; // Start from the second row because the first row contains headers
-        int errorMessageIndex = 0; // Declare and initialize errorMessageIndex here
-
-        foreach (var logChild in logChilds)
+        try
         {
-            string[] rows = logChild.Filedata.Split(';');
-            string[] ErrorMassage = logChild.ErrorMessage.Split(";");
+            var logChilds = await _exportExcelService.GetAllLogChildsByParentIDAsync(parentId.Value);
+            int rowIndex = 3;
 
-            for (int i = 1; i < rows.Length; i++)
+            foreach (var logChild in logChilds)
             {
-                string cleanedRow = rows[i].Trim();
-                string[] values = cleanedRow.Split(',');
+                string[] rows = logChild.Filedata.Split(';');
+                string errorMessage = logChild.ErrorMessage;
 
-                if (values.Length >= 0)
+                for (int i = 1; i < rows.Length; i++)
                 {
+                    if (string.IsNullOrWhiteSpace(rows[i]))
+                    {
+                        continue;
+                    }
+                    string cleanedRow = rows[i].TrimStart(';').Trim();
+                    string[] values = cleanedRow.Split('!');
                     for (int columnIndex = 0; columnIndex < values.Length; columnIndex++)
                     {
                         columnNamesWorksheet.Range[rowIndex, columnIndex + 1].Text = values[columnIndex];
                     }
-
-                    if (errorMessageIndex < ErrorMassage.Length)
-                    {
-                        columnNamesWorksheet.Range[rowIndex, values.Length + 1].Text = ErrorMassage[errorMessageIndex];
-                        errorMessageIndex++;
-                    }
+                    columnNamesWorksheet.Range[rowIndex, values.Length + 1].Text = errorMessage;
 
                     rowIndex++;
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            throw;
         }
     }
 
